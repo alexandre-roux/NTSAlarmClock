@@ -1,10 +1,11 @@
-package com.example.ntsalarmclock.ui
+package com.example.ntsalarmclock
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import com.example.ntsalarmclock.ui.screens.ring.RingScreen
 
 class RingingActivity : ComponentActivity() {
 

@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">NTSAlarmClock</string>
     <string name="activate_alarm">ACTIVATE ALARM?</string>
+    <string name="select_time">SELECT TIME:</string>
 </resources>
