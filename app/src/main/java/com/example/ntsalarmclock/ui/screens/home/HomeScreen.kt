@@ -100,6 +100,29 @@ private fun HomeScreenContent(
                         onTimeChange(time.hour, time.minute)
                     }
                 )
+
+                val now = remember { LocalTime.now() }
+                val durationUntilAlarm = remember(state.hour, state.minute) {
+                    val selectedTime = LocalTime.of(state.hour, state.minute)
+                    val minutesNow = now.hour * 60 + now.minute
+                    val minutesSelected = selectedTime.hour * 60 + selectedTime.minute
+
+                    val diffMinutes = if (minutesSelected >= minutesNow) {
+                        minutesSelected - minutesNow
+                    } else {
+                        24 * 60 - minutesNow + minutesSelected
+                    }
+
+                    val hours = diffMinutes / 60
+                    val minutes = diffMinutes % 60
+
+                    hours to minutes
+                }
+                Text(
+                    text = "This alarm will start in ${durationUntilAlarm.first} hours ${durationUntilAlarm.second} minutes",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                )
             }
         }
     }
