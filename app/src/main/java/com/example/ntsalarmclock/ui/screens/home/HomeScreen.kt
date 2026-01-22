@@ -1,4 +1,4 @@
-package com.example.ntsalarmclock.ui
+package com.example.ntsalarmclock.ui.screens.home
 
 import android.util.Log
 import androidx.compose.foundation.layout.Column
@@ -23,8 +23,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
-import com.example.ntsalarmclock.ui.vm.HomeScreenUiState
-import com.example.ntsalarmclock.ui.vm.HomeScreenViewModel
 
 @Composable
 fun HomeScreen(
@@ -66,6 +64,11 @@ private fun HomeScreenContent(
                 onEnabledChange(it)
             }
         )
+
+//        Text(
+//            stringResource(R.string.select_time),
+//            style = MaterialTheme.typography.headlineLarge
+//        )
     }
 }
 
@@ -79,7 +82,8 @@ private fun HomeScreenPreview() {
             HomeScreenContent(
                 state = HomeScreenUiState(enabled = true, hour = 7, minute = 0),
                 onEnabledChange = {},
-                onTimeChange = {} as (Int, Int) -> Unit)
+                onTimeChange = { _, _ -> }
+            )
         }
     }
 }

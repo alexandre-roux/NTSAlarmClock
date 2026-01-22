@@ -1,4 +1,4 @@
-package com.example.ntsalarmclock.ui.vm
+package com.example.ntsalarmclock.ui.screens.home
 
 import android.app.Application
 import android.util.Log

@@ -27,7 +27,7 @@
         </activity>
 
         <activity
-            android:name=".ui.RingingActivity"
+            android:name=".RingingActivity"
             android:exported="false"
             android:launchMode="singleTask"
             android:showWhenLocked="true"
