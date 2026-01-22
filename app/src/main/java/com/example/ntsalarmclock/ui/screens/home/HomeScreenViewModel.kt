@@ -9,6 +9,7 @@ import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.data.AlarmSettingsRepository
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.example.ntsalarmclock.data.alarmSettingsDataStore
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +23,7 @@ data class HomeScreenUiState(
     val minute: Int = 0
 )
 
+@OptIn(FlowPreview::class)
 class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
     val TAG = "HomeScreenViewModel"
 
@@ -57,7 +59,6 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         Log.d(TAG, "onTimeChange: $hour:$minute")
         viewModelScope.launch {
             repository.setTime(hour, minute)
-
             if (uiState.value.enabled) {
                 scheduler.scheduleNext(hour, minute)
             }
