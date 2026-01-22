@@ -5,13 +5,16 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import java.util.Calendar
 
 class AlarmScheduler(private val context: Context) {
+    val TAG = "AlarmScheduler"
 
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
     fun scheduleNext(hour: Int, minute: Int) {
+        Log.d(TAG, "scheduleNext: $hour:$minute")
         val triggerAtMillis = computeNextTriggerMillis(hour, minute)
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -40,7 +43,7 @@ class AlarmScheduler(private val context: Context) {
                 triggerAtMillis,
                 pendingIntent
             )
-        } catch (securityException: SecurityException) {
+        } catch (_: SecurityException) {
             // Fallback if the OS blocks exact alarms (Android 12+).
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
@@ -51,6 +54,7 @@ class AlarmScheduler(private val context: Context) {
     }
 
     fun cancel() {
+        Log.d(TAG, "cancel")
         val pendingIntent = PendingIntent.getBroadcast(
             context,
             REQUEST_CODE_ALARM,
