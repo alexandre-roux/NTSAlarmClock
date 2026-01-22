@@ -12,7 +12,9 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.NTSAlarmClock">
+        android:forceDarkAllowed="false"
+        android:theme="@style/Theme.NTSAlarmClock"
+        tools:targetApi="29">
         <activity
             android:name=".MainActivity"
             android:exported="true"

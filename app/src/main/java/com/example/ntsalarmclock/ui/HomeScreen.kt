@@ -1,7 +1,10 @@
 package com.example.ntsalarmclock.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,7 +17,11 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     vm: HomeScreenViewModel = viewModel()
 ) {
-    Column(modifier = modifier.padding(16.dp)) {
+    Column(
+        modifier = modifier
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .padding(16.dp)
+    ) {
         Text("Feature 1: schedule alarm")
 
         Button(
