@@ -11,9 +11,11 @@ fun NTSAlarmClockTheme(
 ) {
     MaterialTheme(
         colorScheme = darkColorScheme(
+            primary = Color.White,
+            onPrimary = Color.Black,
             background = Color.Black,
-            surface = Color.Black,
             onBackground = Color.White,
+            surface = Color.Black,
             onSurface = Color.White
         ),
         typography = Typography,

@@ -6,56 +6,51 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier,
-    vm: HomeScreenViewModel = viewModel()
+    viewModel: HomeScreenViewModel = viewModel()
 ) {
-    HomeScreenContent(
-        modifier = modifier,
-        onSchedule0730 = { vm.schedule(hour = 7, minute = 30) },
-        onCancel = { vm.cancel() }
-    )
+    HomeScreenContent()
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeScreenContent(
-    modifier: Modifier = Modifier,
-    onSchedule0730: () -> Unit,
-    onCancel: () -> Unit
-) {
+private fun HomeScreenContent() {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(16.dp)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Feature 1: schedule alarm")
-
-        Button(
-            onClick = onSchedule0730,
-            modifier = Modifier.padding(top = 12.dp)
-        ) {
-            Text("Schedule 07:30")
-        }
-
-        Button(
-            onClick = onCancel,
-            modifier = Modifier.padding(top = 12.dp)
-        ) {
-            Text("Cancel alarm")
-        }
+        Text(
+            stringResource(R.string.activate_alarm),
+            style = MaterialTheme.typography.headlineLarge
+        )
+        var checked by remember { mutableStateOf(true) }
+        Switch(
+            checked = checked,
+            onCheckedChange = { checked = it }
+        )
     }
 }
 
@@ -66,10 +61,7 @@ private fun HomeScreenPreview() {
         Surface(
             color = MaterialTheme.colorScheme.background
         ) {
-            HomeScreenContent(
-                onSchedule0730 = {},
-                onCancel = {}
-            )
+            HomeScreenContent()
         }
     }
 }
