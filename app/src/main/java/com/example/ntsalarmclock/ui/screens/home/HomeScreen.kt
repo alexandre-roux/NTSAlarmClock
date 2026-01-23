@@ -1,6 +1,5 @@
 package com.example.ntsalarmclock.ui.screens.home
 
-import CyclicTimePicker
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
@@ -26,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ntsalarmclock.R
+import com.example.ntsalarmclock.ui.components.CyclicTimePicker
 import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 import java.time.LocalTime
 
