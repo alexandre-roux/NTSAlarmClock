@@ -26,7 +26,9 @@ data class HomeScreenUiState(
 
 @OptIn(FlowPreview::class)
 class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
-    val TAG = "HomeScreenViewModel"
+    companion object {
+        private const val TAG = "HomeScreenViewModel"
+    }
 
     private val scheduler = AlarmScheduler(app.applicationContext)
 
@@ -74,6 +76,13 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun onHardwareVolumeKey(delta: Int) {
+        val current = uiState.value.volume
+        val next = (current + delta).coerceIn(0, 100)
+        onVolumeChange(next)
+    }
+
+
     private fun Flow<AlarmSettings>.toUiState() =
         mapToUiState(this)
 }
@@ -85,7 +94,8 @@ private fun mapToUiState(
         HomeScreenUiState(
             enabled = settings.enabled,
             hour = settings.hour,
-            minute = settings.minute
+            minute = settings.minute,
+            volume = settings.volume
         )
     }
 }
