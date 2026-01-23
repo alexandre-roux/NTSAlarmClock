@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class HomeScreenUiState(
-    val enabled: Boolean = true,
+    val enabled: Boolean = false,
     val hour: Int = 7,
     val minute: Int = 0
 )
