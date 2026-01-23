@@ -13,6 +13,7 @@ lifecycleViewmodelCompose = "2.10.0"
 material = "1.13.0"
 datastorePreferences = "1.2.0"
 wheelPickerCompose = "1.1.11"
+seeker = "1.2.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +34,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 google-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 wheelPickerCompose = { module = "com.github.commandiron:WheelPickerCompose", version.ref = "wheelPickerCompose" }
+seeker = { module = "io.github.2307vivek:seeker", version.ref = "seeker" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

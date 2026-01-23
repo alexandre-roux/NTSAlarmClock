@@ -18,10 +18,12 @@ class DataStoreAlarmSettingsRepository(
         val KEY_ENABLED = booleanPreferencesKey("alarm_enabled")
         val KEY_HOUR = intPreferencesKey("alarm_hour")
         val KEY_MINUTE = intPreferencesKey("alarm_minute")
+        val KEY_VOLUME = intPreferencesKey("alarm_volume")
 
+        const val DEFAULT_ENABLED = true
         const val DEFAULT_HOUR = 7
         const val DEFAULT_MINUTE = 0
-        const val DEFAULT_ENABLED = true
+        const val DEFAULT_VOLUME = 70
     }
 
     override val settings: Flow<AlarmSettings> =
@@ -29,7 +31,8 @@ class DataStoreAlarmSettingsRepository(
             AlarmSettings(
                 enabled = prefs[KEY_ENABLED] ?: DEFAULT_ENABLED,
                 hour = prefs[KEY_HOUR] ?: DEFAULT_HOUR,
-                minute = prefs[KEY_MINUTE] ?: DEFAULT_MINUTE
+                minute = prefs[KEY_MINUTE] ?: DEFAULT_MINUTE,
+                volume = prefs[KEY_VOLUME] ?: DEFAULT_VOLUME
             )
         }
 
@@ -41,9 +44,17 @@ class DataStoreAlarmSettingsRepository(
     }
 
     override suspend fun setTime(hour: Int, minute: Int) {
+        Log.d(TAG, "setTime: $hour:$minute")
         dataStore.edit { prefs ->
             prefs[KEY_HOUR] = hour
             prefs[KEY_MINUTE] = minute
+        }
+    }
+
+    override suspend fun setVolume(volume: Int) {
+        Log.d(TAG, "setVolume: $volume")
+        dataStore.edit { prefs ->
+            prefs[KEY_VOLUME] = volume
         }
     }
 }
