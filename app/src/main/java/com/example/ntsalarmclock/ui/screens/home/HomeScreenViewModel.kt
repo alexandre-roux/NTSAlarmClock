@@ -20,7 +20,8 @@ import kotlinx.coroutines.launch
 data class HomeScreenUiState(
     val enabled: Boolean = false,
     val hour: Int = 7,
-    val minute: Int = 0
+    val minute: Int = 0,
+    val volume: Int = 70
 )
 
 @OptIn(FlowPreview::class)
@@ -62,6 +63,14 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
             if (uiState.value.enabled) {
                 scheduler.scheduleNext(hour, minute)
             }
+        }
+    }
+
+    fun onVolumeChange(volume: Int) {
+        Log.d(TAG, "onVolumeChange: $volume")
+        val clamped = volume.coerceIn(0, 100)
+        viewModelScope.launch {
+            repository.setVolume(clamped)
         }
     }
 

@@ -5,7 +5,8 @@ import kotlinx.coroutines.flow.Flow
 data class AlarmSettings(
     val enabled: Boolean,
     val hour: Int,
-    val minute: Int
+    val minute: Int,
+    val volume: Int
 )
 
 interface AlarmSettingsRepository {
@@ -13,4 +14,5 @@ interface AlarmSettingsRepository {
 
     suspend fun setEnabled(enabled: Boolean)
     suspend fun setTime(hour: Int, minute: Int)
+    suspend fun setVolume(volume: Int)
 }

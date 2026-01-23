@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.google.material)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.wheelPickerCompose)
+    implementation(libs.seeker)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

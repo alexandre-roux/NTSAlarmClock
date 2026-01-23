@@ -1,6 +1,5 @@
 package com.example.ntsalarmclock.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -13,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -25,8 +23,7 @@ import com.commandiron.wheel_picker_compose.core.WheelTextPicker
 fun CyclicTimePicker(
     hour: Int,
     minute: Int,
-    onTimeChange: (Int, Int) -> Unit,
-    modifier: Modifier = Modifier
+    onTimeChange: (Int, Int) -> Unit
 ) {
     val hours = remember { List(24 * 400) { it % 24 } }
     val minutes = remember { List(60 * 400) { it % 60 } }
@@ -41,22 +38,15 @@ fun CyclicTimePicker(
     val rowCount = 3
     val centerRowHeight = pickerSize.height / rowCount
 
-    Box(modifier = modifier) {
-
+    Box {
         Row(verticalAlignment = Alignment.CenterVertically) {
-
             WheelTextPicker(
                 size = pickerSize,
                 texts = hours.map { it.toString().padStart(2, '0') },
                 style = MaterialTheme.typography.headlineMedium,
                 rowCount = rowCount,
                 startIndex = startHourIndex,
-                selectorProperties = WheelPickerDefaults.selectorProperties(
-                    enabled = true,
-                    shape = RoundedCornerShape(0.dp),
-                    color = Color.Transparent,
-                    border = BorderStroke(0.dp, Color.Transparent)
-                )
+                selectorProperties = WheelPickerDefaults.selectorProperties(enabled = false)
             ) { snappedIndex ->
                 val newHour = hours[snappedIndex]
                 onTimeChange(newHour, minute)
@@ -83,12 +73,7 @@ fun CyclicTimePicker(
                 style = MaterialTheme.typography.headlineMedium,
                 rowCount = rowCount,
                 startIndex = startMinuteIndex,
-                selectorProperties = WheelPickerDefaults.selectorProperties(
-                    enabled = true,
-                    shape = RoundedCornerShape(0.dp),
-                    color = Color.Transparent,
-                    border = BorderStroke(0.dp, Color.Transparent)
-                )
+                selectorProperties = WheelPickerDefaults.selectorProperties(enabled = false)
             ) { snappedIndex ->
                 val newMinute = minutes[snappedIndex]
                 onTimeChange(hour, newMinute)
