@@ -9,6 +9,7 @@ import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.data.AlarmSettingsRepository
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.example.ntsalarmclock.data.alarmSettingsDataStore
+import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +24,8 @@ data class HomeScreenUiState(
     val hour: Int = 7,
     val minute: Int = 0,
     val volume: Int = 25,
-    val streamUrl: String = NTS_STREAM_URL
+    val streamUrl: String = NTS_STREAM_URL,
+    val enabledDays: Set<DayOfWeekUi> = emptySet()
 )
 
 class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
@@ -64,9 +66,6 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         Log.d(TAG, "onTimeChange: $hour:$minute")
         viewModelScope.launch {
             repository.setTime(hour, minute)
-            if (uiState.value.enabled) {
-                scheduler.scheduleNext(hour, minute)
-            }
         }
     }
 
@@ -84,6 +83,19 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         onVolumeChange(next)
     }
 
+    fun onToggleDay(day: DayOfWeekUi) {
+        viewModelScope.launch {
+            val current = uiState.value.enabledDays
+            val updated = if (current.contains(day)) {
+                current - day
+            } else {
+                current + day
+            }
+
+            repository.setEnabledDays(updated)
+        }
+    }
+
     private fun Flow<AlarmSettings>.toUiState(): Flow<HomeScreenUiState> {
         return this.map { settings ->
             HomeScreenUiState(
@@ -91,7 +103,8 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
                 hour = settings.hour,
                 minute = settings.minute,
                 volume = settings.volume,
-                streamUrl = NTS_STREAM_URL
+                streamUrl = NTS_STREAM_URL,
+                enabledDays = settings.enabledDays
             )
         }
     }
