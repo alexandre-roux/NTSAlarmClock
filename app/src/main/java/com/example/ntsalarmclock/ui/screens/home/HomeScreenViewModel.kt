@@ -48,16 +48,18 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
                 initialValue = HomeScreenUiState()
             )
 
-    fun onEnabledChange(enabled: Boolean) {
+    fun onEnabledChange() {
+        val enabled = !uiState.value.enabled
         Log.d(TAG, "onEnabledChange: $enabled")
+
         viewModelScope.launch {
             repository.setEnabled(enabled)
 
             val current = uiState.value
-            if (!enabled) {
-                scheduler.cancel()
-            } else {
+            if (enabled) {
                 scheduler.scheduleNext(current.hour, current.minute)
+            } else {
+                scheduler.cancel()
             }
         }
     }

@@ -3,4 +3,6 @@
     <string name="time">TIME:</string>
     <string name="volume">VOLUME:</string>
     <string name="days">DAYS:</string>
+    <string name="cancel_alarm">CANCEL ALARM</string>
+    <string name="set_alarm">SET ALARM</string>
 </resources>
