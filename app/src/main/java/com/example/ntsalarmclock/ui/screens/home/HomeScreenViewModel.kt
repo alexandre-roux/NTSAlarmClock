@@ -9,7 +9,6 @@ import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.data.AlarmSettingsRepository
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.example.ntsalarmclock.data.alarmSettingsDataStore
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,15 +16,18 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+private const val NTS_STREAM_URL = "https://stream-relay-geo.ntslive.net/stream"
+
 data class HomeScreenUiState(
     val enabled: Boolean = false,
     val hour: Int = 7,
     val minute: Int = 0,
-    val volume: Int = 70
+    val volume: Int = 25,
+    val streamUrl: String = NTS_STREAM_URL
 )
 
-@OptIn(FlowPreview::class)
 class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
+
     companion object {
         private const val TAG = "HomeScreenViewModel"
     }
@@ -82,20 +84,15 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         onVolumeChange(next)
     }
 
-
-    private fun Flow<AlarmSettings>.toUiState() =
-        mapToUiState(this)
-}
-
-private fun mapToUiState(
-    flow: Flow<AlarmSettings>
-): Flow<HomeScreenUiState> {
-    return flow.map { settings ->
-        HomeScreenUiState(
-            enabled = settings.enabled,
-            hour = settings.hour,
-            minute = settings.minute,
-            volume = settings.volume
-        )
+    private fun Flow<AlarmSettings>.toUiState(): Flow<HomeScreenUiState> {
+        return this.map { settings ->
+            HomeScreenUiState(
+                enabled = settings.enabled,
+                hour = settings.hour,
+                minute = settings.minute,
+                volume = settings.volume,
+                streamUrl = NTS_STREAM_URL
+            )
+        }
     }
 }
