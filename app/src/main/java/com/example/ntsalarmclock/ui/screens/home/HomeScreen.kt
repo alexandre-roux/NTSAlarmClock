@@ -1,7 +1,6 @@
 package com.example.ntsalarmclock.ui.screens.home
 
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +18,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -97,8 +95,6 @@ fun HomeScreen(
     )
 }
 
-private const val TAG = "HomeScreenContent"
-
 @Composable
 private fun HomeScreenContent(
     state: HomeScreenUiState,
@@ -116,102 +112,85 @@ private fun HomeScreenContent(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = stringResource(R.string.activate_alarm),
-            style = MaterialTheme.typography.headlineLarge
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = stringResource(R.string.select_time),
+                style = MaterialTheme.typography.headlineLarge
+            )
 
-        Switch(
-            checked = state.enabled,
-            onCheckedChange = {
-                Log.d(TAG, "onCheckedChange: $it")
-                onEnabledChange(it)
-            }
-        )
+            CyclicTimePicker(
+                hour = state.hour,
+                minute = state.minute,
+                onTimeChange = onTimeChange,
+            )
 
-        AnimatedVisibility(visible = state.enabled) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Spacer(modifier = Modifier.height(16.dp))
+            val now = LocalTime.now()
+            val durationUntilAlarm = remember(state.hour, state.minute, now.hour, now.minute) {
+                val selectedTime = LocalTime.of(state.hour, state.minute)
+                val minutesNow = now.hour * 60 + now.minute
+                val minutesSelected = selectedTime.hour * 60 + selectedTime.minute
 
-                Text(
-                    text = stringResource(R.string.select_time),
-                    style = MaterialTheme.typography.headlineLarge
-                )
-
-                CyclicTimePicker(
-                    hour = state.hour,
-                    minute = state.minute,
-                    onTimeChange = onTimeChange,
-                )
-
-                val now = LocalTime.now()
-                val durationUntilAlarm = remember(state.hour, state.minute, now.hour, now.minute) {
-                    val selectedTime = LocalTime.of(state.hour, state.minute)
-                    val minutesNow = now.hour * 60 + now.minute
-                    val minutesSelected = selectedTime.hour * 60 + selectedTime.minute
-
-                    val diffMinutes = if (minutesSelected >= minutesNow) {
-                        minutesSelected - minutesNow
-                    } else {
-                        24 * 60 - minutesNow + minutesSelected
-                    }
-
-                    val hours = diffMinutes / 60
-                    val minutes = diffMinutes % 60
-                    hours to minutes
+                val diffMinutes = if (minutesSelected >= minutesNow) {
+                    minutesSelected - minutesNow
+                } else {
+                    24 * 60 - minutesNow + minutesSelected
                 }
-                Text(
-                    text = "This alarm will start in ${durationUntilAlarm.first} hours ${durationUntilAlarm.second} minutes",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = stringResource(R.string.set_volume),
-                    style = MaterialTheme.typography.headlineLarge
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onPlayPauseClick,
-                        modifier = Modifier.size(64.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause stream" else "Play stream",
-                            tint = Color.White,
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-                    // Keep UI responsive while dragging, then persist on release
-                    var volumeUi by remember { mutableFloatStateOf(state.volume.toFloat()) }
-                    LaunchedEffect(state.volume) {
-                        volumeUi = state.volume.toFloat()
-                    }
-                    Seeker(
-                        value = volumeUi,
-                        range = 0f..50f,
-                        onValueChange = { newValue ->
-                            volumeUi = newValue
-                            onVolumeLiveChange(volumeUi.roundToInt())
-                        },
-                        onValueChangeFinished = {
-                            onVolumeChange(volumeUi.roundToInt())
-                        },
-                        colors = SeekerDefaults.seekerColors(
-                            progressColor = Color.White,
-                            trackColor = Color(0xFF6B6B6B),
-                            thumbColor = Color.White,
-                            readAheadColor = Color(0xFF6B6B6B)
-                        ),
-                        dimensions = SeekerDefaults.seekerDimensions(
-                            trackHeight = 6.dp,
-                            progressHeight = 6.dp,
-                            thumbRadius = 10.dp,
-                            gap = 0.dp
-                        )
+                val hours = diffMinutes / 60
+                val minutes = diffMinutes % 60
+                hours to minutes
+            }
+            Text(
+                text = "This alarm will start in ${durationUntilAlarm.first} hours ${durationUntilAlarm.second} minutes",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.set_volume),
+                style = MaterialTheme.typography.headlineLarge
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onPlayPauseClick,
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause stream" else "Play stream",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
                     )
                 }
+                // Keep UI responsive while dragging, then persist on release
+                var volumeUi by remember { mutableFloatStateOf(state.volume.toFloat()) }
+                LaunchedEffect(state.volume) {
+                    volumeUi = state.volume.toFloat()
+                }
+                Seeker(
+                    value = volumeUi,
+                    range = 0f..50f,
+                    onValueChange = { newValue ->
+                        volumeUi = newValue
+                        onVolumeLiveChange(volumeUi.roundToInt())
+                    },
+                    onValueChangeFinished = {
+                        onVolumeChange(volumeUi.roundToInt())
+                    },
+                    colors = SeekerDefaults.seekerColors(
+                        progressColor = Color.White,
+                        trackColor = Color(0xFF6B6B6B),
+                        thumbColor = Color.White,
+                        readAheadColor = Color(0xFF6B6B6B)
+                    ),
+                    dimensions = SeekerDefaults.seekerDimensions(
+                        trackHeight = 6.dp,
+                        progressHeight = 6.dp,
+                        thumbRadius = 10.dp,
+                        gap = 0.dp
+                    )
+                )
             }
         }
     }
