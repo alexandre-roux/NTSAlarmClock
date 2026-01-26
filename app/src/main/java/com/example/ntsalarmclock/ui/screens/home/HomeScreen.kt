@@ -55,7 +55,12 @@ fun HomeScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     var isPlaying by remember { mutableStateOf(false) }
-    var volumeLive by remember(state.volume) { mutableIntStateOf(state.volume) }
+
+    // Volume used by the player, updated live while dragging
+    var volumeLive by remember { mutableIntStateOf(state.volume) }
+
+    // Prevent persisted state updates from fighting with the user's drag gesture
+    var isDraggingVolume by remember { mutableStateOf(false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -74,6 +79,13 @@ fun HomeScreen(
         }
     }
 
+    // Sync persisted volume into live volume only when not dragging
+    LaunchedEffect(state.volume) {
+        if (!isDraggingVolume) {
+            volumeLive = state.volume
+        }
+    }
+
     NTSPlayerEffect(
         streamUrl = state.streamUrl,
         shouldPlay = isPlaying,
@@ -83,14 +95,25 @@ fun HomeScreen(
     HomeScreenContent(
         state = state,
         isPlaying = isPlaying,
+        volumeLive = volumeLive,
         onPlayPauseClick = {
             isPlaying = !isPlaying
             Log.d(TAG, "isPlaying=$isPlaying")
         },
         onEnabledChange = viewModel::onEnabledChange,
         onTimeChange = viewModel::onTimeChange,
-        onVolumeChange = viewModel::onVolumeChange,
-        onVolumeLiveChange = { }
+        onVolumeLiveChange = { newVolume ->
+            isDraggingVolume = true
+            volumeLive = newVolume
+        },
+        onVolumeChangeFinished = { finalVolume ->
+            // Lock the final value immediately to avoid flicker
+            volumeLive = finalVolume
+
+            // End drag mode, then persist
+            isDraggingVolume = false
+            viewModel.onVolumeChange(finalVolume)
+        }
     )
 }
 
@@ -98,11 +121,12 @@ fun HomeScreen(
 private fun HomeScreenContent(
     state: HomeScreenUiState,
     isPlaying: Boolean,
+    volumeLive: Int,
     onPlayPauseClick: () -> Unit,
     onEnabledChange: (Boolean) -> Unit,
     onTimeChange: (Int, Int) -> Unit,
-    onVolumeChange: (Int) -> Unit,
-    onVolumeLiveChange: (Int) -> Unit
+    onVolumeLiveChange: (Int) -> Unit,
+    onVolumeChangeFinished: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -116,6 +140,7 @@ private fun HomeScreenContent(
                 text = stringResource(R.string.select_time),
                 style = MaterialTheme.typography.headlineLarge
             )
+
             CyclicTimePicker(
                 hour = state.hour,
                 minute = state.minute,
@@ -123,10 +148,12 @@ private fun HomeScreenContent(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = stringResource(R.string.set_volume),
                 style = MaterialTheme.typography.headlineLarge
             )
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = onPlayPauseClick,
@@ -139,20 +166,24 @@ private fun HomeScreenContent(
                         modifier = Modifier.size(48.dp)
                     )
                 }
-                // Keep UI responsive while dragging, then persist on release
-                var volumeUi by remember { mutableFloatStateOf(state.volume.toFloat()) }
-                LaunchedEffect(state.volume) {
-                    volumeUi = state.volume.toFloat()
+
+                // Seeker needs Float, our app uses Int percent
+                var volumeUi by remember { mutableFloatStateOf(volumeLive.toFloat()) }
+
+                // Keep UI thumb in sync with live volume
+                LaunchedEffect(volumeLive) {
+                    volumeUi = volumeLive.toFloat()
                 }
+
                 Seeker(
                     value = volumeUi,
                     range = 0f..50f,
                     onValueChange = { newValue ->
                         volumeUi = newValue
-                        onVolumeLiveChange(volumeUi.roundToInt())
+                        onVolumeLiveChange(newValue.roundToInt())
                     },
                     onValueChangeFinished = {
-                        onVolumeChange(volumeUi.roundToInt())
+                        onVolumeChangeFinished(volumeUi.roundToInt())
                     },
                     colors = SeekerDefaults.seekerColors(
                         progressColor = Color.White,
@@ -168,8 +199,6 @@ private fun HomeScreenContent(
                     )
                 )
             }
-
-
         }
     }
 }
@@ -183,10 +212,12 @@ private fun HomeScreenPreview() {
                 state = HomeScreenUiState(enabled = true, hour = 7, minute = 0, volume = 70),
                 onEnabledChange = {},
                 onTimeChange = { _, _ -> },
-                onVolumeChange = {},
                 isPlaying = false,
+                volumeLive = 70,
                 onPlayPauseClick = {},
-            ) {}
+                onVolumeLiveChange = {},
+                onVolumeChangeFinished = {}
+            )
         }
     }
 }
