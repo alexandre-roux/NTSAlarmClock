@@ -71,14 +71,15 @@ fun HomeScreen(
         },
         onTimeChange = viewModel::onTimeChange,
         onToggleDay = viewModel::onToggleDay,
-        onVolumeLiveChange = { newVolume ->
+        onVolumeLiveChange = { _ ->
             isDraggingVolume = true
-            volumeLive = newVolume
         },
         onVolumeChangeFinished = { finalVolume ->
-            volumeLive = finalVolume
             isDraggingVolume = false
             viewModel.onVolumeChange(finalVolume)
+        },
+        onAlarmEnabledClick = {
+            viewModel.onEnabledChange()
         }
     )
 }

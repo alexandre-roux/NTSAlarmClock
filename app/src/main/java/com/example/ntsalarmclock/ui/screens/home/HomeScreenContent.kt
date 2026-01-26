@@ -17,6 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import com.example.ntsalarmclock.ui.screens.home.components.HomeDaysSection
+import com.example.ntsalarmclock.ui.screens.home.components.HomeEnableAlarmButton
 import com.example.ntsalarmclock.ui.screens.home.components.HomeTimeSection
 import com.example.ntsalarmclock.ui.screens.home.components.HomeVolumeSection
 import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
@@ -30,7 +31,8 @@ fun HomeScreenContent(
     onTimeChange: (Int, Int) -> Unit,
     onToggleDay: (DayOfWeekUi) -> Unit,
     onVolumeLiveChange: (Int) -> Unit,
-    onVolumeChangeFinished: (Int) -> Unit
+    onVolumeChangeFinished: (Int) -> Unit,
+    onAlarmEnabledClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -61,6 +63,13 @@ fun HomeScreenContent(
             selectedDays = state.enabledDays,
             onToggleDay = onToggleDay
         )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        HomeEnableAlarmButton(
+            isAlarmEnabled = state.enabled,
+            onClick = onAlarmEnabledClick
+        )
     }
 }
 
@@ -83,7 +92,8 @@ private fun HomeScreenContentPreview() {
                 onTimeChange = { _, _ -> },
                 onToggleDay = {},
                 onVolumeLiveChange = {},
-                onVolumeChangeFinished = {}
+                onVolumeChangeFinished = {},
+                onAlarmEnabledClick = {}
             )
         }
     }
