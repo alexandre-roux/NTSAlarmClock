@@ -68,6 +68,12 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         Log.d(TAG, "onTimeChange: $hour:$minute")
         viewModelScope.launch {
             repository.setTime(hour, minute)
+
+            val enabled = !uiState.value.enabled
+            if (enabled) {
+                scheduler.cancel()
+                scheduler.scheduleNext(hour, minute)
+            }
         }
     }
 
@@ -80,6 +86,7 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onHardwareVolumeKey(delta: Int) {
+        Log.d(TAG, "onVolumeChange: $delta")
         val current = uiState.value.volume
         val next = (current + delta).coerceIn(0, 100)
         onVolumeChange(next)
@@ -95,6 +102,7 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
             }
 
             repository.setEnabledDays(updated)
+            Log.d(TAG, "onToggleDay: $updated")
         }
     }
 
