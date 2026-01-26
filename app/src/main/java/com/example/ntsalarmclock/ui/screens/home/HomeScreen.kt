@@ -41,6 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.ui.components.CyclicTimePicker
+import com.example.ntsalarmclock.ui.components.DayOfWeekUi
+import com.example.ntsalarmclock.ui.components.DaysOfWeekRow
 import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 import dev.vivvvek.seeker.Seeker
 import dev.vivvvek.seeker.SeekerDefaults
@@ -102,6 +104,7 @@ fun HomeScreen(
         },
         onEnabledChange = viewModel::onEnabledChange,
         onTimeChange = viewModel::onTimeChange,
+        onToggleDay = viewModel::onToggleDay,
         onVolumeLiveChange = { newVolume ->
             isDraggingVolume = true
             volumeLive = newVolume
@@ -125,6 +128,7 @@ private fun HomeScreenContent(
     onPlayPauseClick: () -> Unit,
     onEnabledChange: (Boolean) -> Unit,
     onTimeChange: (Int, Int) -> Unit,
+    onToggleDay: (DayOfWeekUi) -> Unit,
     onVolumeLiveChange: (Int) -> Unit,
     onVolumeChangeFinished: (Int) -> Unit
 ) {
@@ -199,6 +203,13 @@ private fun HomeScreenContent(
                     )
                 )
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            DaysOfWeekRow(
+                selectedDays = state.enabledDays,
+                onToggleDay = onToggleDay
+            )
         }
     }
 }
@@ -209,9 +220,16 @@ private fun HomeScreenPreview() {
     NTSAlarmClockTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             HomeScreenContent(
-                state = HomeScreenUiState(enabled = true, hour = 7, minute = 0, volume = 70),
+                state = HomeScreenUiState(
+                    enabled = true,
+                    hour = 7,
+                    minute = 0,
+                    volume = 70,
+                    enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.WE, DayOfWeekUi.FR)
+                ),
                 onEnabledChange = {},
                 onTimeChange = { _, _ -> },
+                onToggleDay = {},
                 isPlaying = false,
                 volumeLive = 70,
                 onPlayPauseClick = {},

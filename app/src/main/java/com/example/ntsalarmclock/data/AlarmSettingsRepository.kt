@@ -1,12 +1,14 @@
 package com.example.ntsalarmclock.data
 
+import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import kotlinx.coroutines.flow.Flow
 
 data class AlarmSettings(
     val enabled: Boolean,
     val hour: Int,
     val minute: Int,
-    val volume: Int
+    val volume: Int,
+    val enabledDays: Set<DayOfWeekUi> = emptySet()
 )
 
 interface AlarmSettingsRepository {
@@ -15,4 +17,5 @@ interface AlarmSettingsRepository {
     suspend fun setEnabled(enabled: Boolean)
     suspend fun setTime(hour: Int, minute: Int)
     suspend fun setVolume(volume: Int)
+    suspend fun setEnabledDays(days: Set<DayOfWeekUi>)
 }
