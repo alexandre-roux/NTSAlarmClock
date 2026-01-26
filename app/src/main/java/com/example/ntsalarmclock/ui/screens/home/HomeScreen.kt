@@ -44,7 +44,6 @@ import com.example.ntsalarmclock.ui.components.CyclicTimePicker
 import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 import dev.vivvvek.seeker.Seeker
 import dev.vivvvek.seeker.SeekerDefaults
-import java.time.LocalTime
 import kotlin.math.roundToInt
 
 @Composable
@@ -117,33 +116,10 @@ private fun HomeScreenContent(
                 text = stringResource(R.string.select_time),
                 style = MaterialTheme.typography.headlineLarge
             )
-
             CyclicTimePicker(
                 hour = state.hour,
                 minute = state.minute,
                 onTimeChange = onTimeChange,
-            )
-
-            val now = LocalTime.now()
-            val durationUntilAlarm = remember(state.hour, state.minute, now.hour, now.minute) {
-                val selectedTime = LocalTime.of(state.hour, state.minute)
-                val minutesNow = now.hour * 60 + now.minute
-                val minutesSelected = selectedTime.hour * 60 + selectedTime.minute
-
-                val diffMinutes = if (minutesSelected >= minutesNow) {
-                    minutesSelected - minutesNow
-                } else {
-                    24 * 60 - minutesNow + minutesSelected
-                }
-
-                val hours = diffMinutes / 60
-                val minutes = diffMinutes % 60
-                hours to minutes
-            }
-            Text(
-                text = "This alarm will start in ${durationUntilAlarm.first} hours ${durationUntilAlarm.second} minutes",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -192,6 +168,8 @@ private fun HomeScreenContent(
                     )
                 )
             }
+
+
         }
     }
 }
