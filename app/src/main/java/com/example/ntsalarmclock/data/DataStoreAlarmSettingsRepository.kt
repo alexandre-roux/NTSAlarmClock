@@ -21,11 +21,13 @@ class DataStoreAlarmSettingsRepository(
         val KEY_MINUTE = intPreferencesKey("alarm_minute")
         val KEY_VOLUME = intPreferencesKey("alarm_volume")
         val KEY_ENABLED_DAYS = stringSetPreferencesKey("alarm_enabled_days")
+        val KEY_PROGRESSIVE_VOLUME = booleanPreferencesKey("alarm_progressive_volume")
 
         const val DEFAULT_ENABLED = true
         const val DEFAULT_HOUR = 7
         const val DEFAULT_MINUTE = 0
         const val DEFAULT_VOLUME = 70
+        const val DEFAULT_PROGRESSIVE_VOLUME = false
     }
 
     private val TAG = "DataStoreAlarmSettingsRepository"
@@ -43,7 +45,8 @@ class DataStoreAlarmSettingsRepository(
                 hour = prefs[KEY_HOUR] ?: DEFAULT_HOUR,
                 minute = prefs[KEY_MINUTE] ?: DEFAULT_MINUTE,
                 volume = prefs[KEY_VOLUME] ?: DEFAULT_VOLUME,
-                enabledDays = enabledDays
+                enabledDays = enabledDays,
+                progressiveVolume = prefs[KEY_PROGRESSIVE_VOLUME] ?: DEFAULT_PROGRESSIVE_VOLUME
             )
         }
 
@@ -74,6 +77,13 @@ class DataStoreAlarmSettingsRepository(
         val encoded = days.map { it.name }.toSet()
         dataStore.edit { prefs ->
             prefs[KEY_ENABLED_DAYS] = encoded
+        }
+    }
+
+    override suspend fun setProgressiveVolume(progressiveVolumeEnabled: Boolean) {
+        Log.d(TAG, "setProgressiveVolume: $progressiveVolumeEnabled")
+        dataStore.edit { prefs ->
+            prefs[KEY_PROGRESSIVE_VOLUME] = progressiveVolumeEnabled
         }
     }
 }

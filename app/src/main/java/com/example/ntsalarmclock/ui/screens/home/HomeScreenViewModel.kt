@@ -25,7 +25,8 @@ data class HomeScreenUiState(
     val minute: Int = 0,
     val volume: Int = 25,
     val streamUrl: String = NTS_STREAM_URL,
-    val enabledDays: Set<DayOfWeekUi> = emptySet()
+    val enabledDays: Set<DayOfWeekUi> = emptySet(),
+    val progressiveVolume: Boolean = false
 )
 
 class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
@@ -106,6 +107,12 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun onProgressiveVolumeEnabledChange(progressiveVolumeEnabled: Boolean) {
+        viewModelScope.launch {
+            repository.setProgressiveVolume(progressiveVolumeEnabled)
+        }
+    }
+
     private fun Flow<AlarmSettings>.toUiState(): Flow<HomeScreenUiState> {
         return this.map { settings ->
             HomeScreenUiState(
@@ -114,7 +121,8 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
                 minute = settings.minute,
                 volume = settings.volume,
                 streamUrl = NTS_STREAM_URL,
-                enabledDays = settings.enabledDays
+                enabledDays = settings.enabledDays,
+                progressiveVolume = settings.progressiveVolume
             )
         }
     }

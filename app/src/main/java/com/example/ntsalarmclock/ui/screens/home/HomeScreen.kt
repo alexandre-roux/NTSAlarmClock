@@ -80,6 +80,9 @@ fun HomeScreen(
         },
         onAlarmEnabledClick = {
             viewModel.onEnabledChange()
+        },
+        onProgressiveVolumeEnabledChange = {
+            viewModel.onProgressiveVolumeEnabledChange(it)
         }
     )
 }

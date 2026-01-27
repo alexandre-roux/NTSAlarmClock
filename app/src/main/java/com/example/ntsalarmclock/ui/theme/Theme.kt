@@ -13,6 +13,8 @@ fun NTSAlarmClockTheme(
         colorScheme = darkColorScheme(
             primary = Color.White,
             onPrimary = Color.Black,
+            secondary = Color(0xFF9E9E9E),
+            onSecondary = Color.Black,
             background = Color.Black,
             onBackground = Color.White,
             surface = Color.Black,

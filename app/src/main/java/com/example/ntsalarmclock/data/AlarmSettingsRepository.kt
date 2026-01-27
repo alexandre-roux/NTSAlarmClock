@@ -8,7 +8,8 @@ data class AlarmSettings(
     val hour: Int,
     val minute: Int,
     val volume: Int,
-    val enabledDays: Set<DayOfWeekUi> = emptySet()
+    val enabledDays: Set<DayOfWeekUi> = emptySet(),
+    val progressiveVolume: Boolean
 )
 
 interface AlarmSettingsRepository {
@@ -18,4 +19,5 @@ interface AlarmSettingsRepository {
     suspend fun setTime(hour: Int, minute: Int)
     suspend fun setVolume(volume: Int)
     suspend fun setEnabledDays(days: Set<DayOfWeekUi>)
+    suspend fun setProgressiveVolume(progressiveVolumeEnabled: Boolean)
 }
