@@ -13,7 +13,7 @@ import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -50,20 +50,31 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
                 initialValue = HomeScreenUiState()
             )
 
-    fun onEnabledChange() {
-        val enabled = !uiState.value.enabled
-        Log.d(TAG, "onEnabledChange: $enabled")
-
+    init {
+        // Single source of truth: whenever alarm-related settings change, reschedule accordingly.
         viewModelScope.launch {
-            repository.setEnabled(enabled)
+            repository.settings
+                .distinctUntilChanged()
+                .collect { settings ->
+                    Log.d(
+                        TAG,
+                        "settings changed: enabled=${settings.enabled}, time=${settings.hour}:${settings.minute}, days=${settings.enabledDays}"
+                    )
 
-            if (!enabled) {
-                scheduler.cancel()
-                return@launch
-            }
+                    if (settings.enabled) {
+                        scheduler.scheduleNextFromSettings(settings)
+                    } else {
+                        scheduler.cancel()
+                    }
+                }
+        }
+    }
 
-            val settings = repository.settings.first()
-            scheduler.scheduleNextFromSettings(settings)
+    fun onEnabledChange() {
+        val nextEnabled = !uiState.value.enabled
+        Log.d(TAG, "onEnabledChange: $nextEnabled")
+        viewModelScope.launch {
+            repository.setEnabled(nextEnabled)
         }
     }
 
@@ -71,11 +82,6 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         Log.d(TAG, "onTimeChange: $hour:$minute")
         viewModelScope.launch {
             repository.setTime(hour, minute)
-
-            if (!uiState.value.enabled) return@launch
-
-            val settings = repository.settings.first()
-            scheduler.scheduleNextFromSettings(settings)
         }
     }
 
@@ -98,14 +104,8 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val current = uiState.value.enabledDays
             val updated = if (current.contains(day)) current - day else current + day
-
-            repository.setEnabledDays(updated)
             Log.d(TAG, "onToggleDay: $updated")
-
-            if (!uiState.value.enabled) return@launch
-
-            val settings = repository.settings.first()
-            scheduler.scheduleNextFromSettings(settings)
+            repository.setEnabledDays(updated)
         }
     }
 

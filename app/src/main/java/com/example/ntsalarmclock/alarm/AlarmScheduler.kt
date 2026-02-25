@@ -35,6 +35,9 @@ class AlarmScheduler(private val context: Context) {
 
         logNextAlarm(triggerAtMillis)
 
+        // This cancel is not strictly required if the PendingIntent is identical,
+        // but it makes behavior explicit and more reliable across devices/OEMs.
+        cancel()
         scheduleAt(triggerAtMillis)
     }
 
