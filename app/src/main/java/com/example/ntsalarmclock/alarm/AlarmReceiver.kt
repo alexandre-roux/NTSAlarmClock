@@ -15,10 +15,10 @@ import kotlinx.coroutines.launch
 class AlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
-        val i = Intent(context, RingingActivity::class.java).apply {
+        val activityIntent = Intent(context, RingingActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(i)
+        context.startActivity(activityIntent)
 
         val pendingResult = goAsync()
 
