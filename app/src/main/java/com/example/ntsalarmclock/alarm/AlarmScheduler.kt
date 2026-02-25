@@ -6,35 +6,53 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.example.ntsalarmclock.data.AlarmSettings
+import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import java.util.Calendar
+import java.util.Locale
 
 class AlarmScheduler(private val context: Context) {
-    val TAG = "AlarmScheduler"
+    private val tag = "AlarmScheduler"
 
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
-    fun scheduleNext(hour: Int, minute: Int) {
-        Log.d(TAG, "scheduleNext: $hour:$minute")
-        val triggerAtMillis = computeNextTriggerMillis(hour, minute)
-
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            REQUEST_CODE_ALARM,
-            Intent(context, AlarmReceiver::class.java),
-            pendingIntentFlags()
+    fun scheduleNextFromSettings(settings: AlarmSettings) {
+        Log.d(
+            tag,
+            "scheduleNextFromSettings: enabled=${settings.enabled}, time=${settings.hour}:${settings.minute}, days=${settings.enabledDays}"
         )
 
-        // MVP: exact alarm when allowed. Fallback to inexact alarm otherwise.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (!alarmManager.canScheduleExactAlarms()) {
-                // Fallback: still schedule something (inexact) so the app keeps working.
-                alarmManager.set(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerAtMillis,
-                    pendingIntent
-                )
-                return
-            }
+        if (!settings.enabled) {
+            cancel()
+            return
+        }
+
+        val triggerAtMillis = computeNextTriggerMillis(
+            hour = settings.hour,
+            minute = settings.minute,
+            enabledDays = settings.enabledDays
+        )
+
+        logNextAlarm(triggerAtMillis)
+
+        scheduleAt(triggerAtMillis)
+    }
+
+    fun cancel() {
+        Log.d(tag, "cancel")
+        alarmManager.cancel(alarmPendingIntent())
+    }
+
+    private fun scheduleAt(triggerAtMillis: Long) {
+        val pendingIntent = alarmPendingIntent()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            alarmManager.set(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pendingIntent
+            )
+            return
         }
 
         try {
@@ -44,7 +62,6 @@ class AlarmScheduler(private val context: Context) {
                 pendingIntent
             )
         } catch (_: SecurityException) {
-            // Fallback if the OS blocks exact alarms (Android 12+).
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 triggerAtMillis,
@@ -53,35 +70,110 @@ class AlarmScheduler(private val context: Context) {
         }
     }
 
-    fun cancel() {
-        Log.d(TAG, "cancel")
-        val pendingIntent = PendingIntent.getBroadcast(
+    private fun alarmPendingIntent(): PendingIntent {
+        return PendingIntent.getBroadcast(
             context,
             REQUEST_CODE_ALARM,
             Intent(context, AlarmReceiver::class.java),
             pendingIntentFlags()
         )
-        alarmManager.cancel(pendingIntent)
     }
 
-    private fun computeNextTriggerMillis(hour: Int, minute: Int): Long {
+    private fun computeNextTriggerMillis(
+        hour: Int,
+        minute: Int,
+        enabledDays: Set<DayOfWeekUi>
+    ): Long {
         val now = Calendar.getInstance()
-        val next = Calendar.getInstance().apply {
+
+        val effectiveDays: Set<Int> =
+            if (enabledDays.isEmpty()) {
+                setOf(
+                    Calendar.MONDAY,
+                    Calendar.TUESDAY,
+                    Calendar.WEDNESDAY,
+                    Calendar.THURSDAY,
+                    Calendar.FRIDAY,
+                    Calendar.SATURDAY,
+                    Calendar.SUNDAY
+                )
+            } else {
+                enabledDays.map { it.toCalendarDayOfWeek() }.toSet()
+            }
+
+        for (offset in 0..6) {
+            val candidate = Calendar.getInstance().apply {
+                timeInMillis = now.timeInMillis
+                add(Calendar.DAY_OF_YEAR, offset)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+                set(Calendar.HOUR_OF_DAY, hour)
+                set(Calendar.MINUTE, minute)
+            }
+
+            val candidateDay = candidate.get(Calendar.DAY_OF_WEEK)
+            if (!effectiveDays.contains(candidateDay)) continue
+
+            if (candidate.timeInMillis > now.timeInMillis) {
+                return candidate.timeInMillis
+            }
+        }
+
+        val fallback = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            add(Calendar.DAY_OF_YEAR, 1)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
         }
+        return fallback.timeInMillis
+    }
 
-        if (next.timeInMillis <= now.timeInMillis) {
-            next.add(Calendar.DAY_OF_YEAR, 1)
+    private fun logNextAlarm(triggerAtMillis: Long) {
+        val calendar = Calendar.getInstance().apply { timeInMillis = triggerAtMillis }
+
+        val dayLabel = dayOfWeekLabel(calendar.get(Calendar.DAY_OF_WEEK))
+        val dateLabel =
+            "${calendar.get(Calendar.YEAR)}-" +
+                    twoDigits(calendar.get(Calendar.MONTH) + 1) + "-" +
+                    twoDigits(calendar.get(Calendar.DAY_OF_MONTH)) +
+                    " " +
+                    twoDigits(calendar.get(Calendar.HOUR_OF_DAY)) + ":" +
+                    twoDigits(calendar.get(Calendar.MINUTE))
+
+        Log.d(tag, "Next alarm scheduled for: $dayLabel, $dateLabel (millis=$triggerAtMillis)")
+    }
+
+    private fun dayOfWeekLabel(dayOfWeek: Int): String {
+        return when (dayOfWeek) {
+            Calendar.MONDAY -> "Monday"
+            Calendar.TUESDAY -> "Tuesday"
+            Calendar.WEDNESDAY -> "Wednesday"
+            Calendar.THURSDAY -> "Thursday"
+            Calendar.FRIDAY -> "Friday"
+            Calendar.SATURDAY -> "Saturday"
+            Calendar.SUNDAY -> "Sunday"
+            else -> "Unknown"
         }
-        return next.timeInMillis
+    }
+
+    private fun twoDigits(value: Int): String = String.format(Locale.US, "%02d", value)
+
+    private fun DayOfWeekUi.toCalendarDayOfWeek(): Int {
+        return when (this) {
+            DayOfWeekUi.MO -> Calendar.MONDAY
+            DayOfWeekUi.TU -> Calendar.TUESDAY
+            DayOfWeekUi.WE -> Calendar.WEDNESDAY
+            DayOfWeekUi.TH -> Calendar.THURSDAY
+            DayOfWeekUi.FR -> Calendar.FRIDAY
+            DayOfWeekUi.SA -> Calendar.SATURDAY
+            DayOfWeekUi.SU -> Calendar.SUNDAY
+        }
     }
 
     private fun pendingIntentFlags(): Int {
-        val mutableOrImmutable = PendingIntent.FLAG_IMMUTABLE
-        return PendingIntent.FLAG_UPDATE_CURRENT or mutableOrImmutable
+        return PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     }
 
     companion object {

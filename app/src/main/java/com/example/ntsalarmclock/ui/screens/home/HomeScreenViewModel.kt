@@ -13,6 +13,7 @@ import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -56,12 +57,13 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repository.setEnabled(enabled)
 
-            val current = uiState.value
-            if (enabled) {
-                scheduler.scheduleNext(current.hour, current.minute)
-            } else {
+            if (!enabled) {
                 scheduler.cancel()
+                return@launch
             }
+
+            val settings = repository.settings.first()
+            scheduler.scheduleNextFromSettings(settings)
         }
     }
 
@@ -70,11 +72,10 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repository.setTime(hour, minute)
 
-            val enabled = !uiState.value.enabled
-            if (enabled) {
-                scheduler.cancel()
-                scheduler.scheduleNext(hour, minute)
-            }
+            if (!uiState.value.enabled) return@launch
+
+            val settings = repository.settings.first()
+            scheduler.scheduleNextFromSettings(settings)
         }
     }
 
@@ -87,7 +88,7 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onHardwareVolumeKey(delta: Int) {
-        Log.d(TAG, "onVolumeChange: $delta")
+        Log.d(TAG, "onHardwareVolumeKey: $delta")
         val current = uiState.value.volume
         val next = (current + delta).coerceIn(0, 100)
         onVolumeChange(next)
@@ -96,14 +97,15 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
     fun onToggleDay(day: DayOfWeekUi) {
         viewModelScope.launch {
             val current = uiState.value.enabledDays
-            val updated = if (current.contains(day)) {
-                current - day
-            } else {
-                current + day
-            }
+            val updated = if (current.contains(day)) current - day else current + day
 
             repository.setEnabledDays(updated)
             Log.d(TAG, "onToggleDay: $updated")
+
+            if (!uiState.value.enabled) return@launch
+
+            val settings = repository.settings.first()
+            scheduler.scheduleNextFromSettings(settings)
         }
     }
 
