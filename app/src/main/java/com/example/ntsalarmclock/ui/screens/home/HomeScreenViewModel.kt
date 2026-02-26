@@ -5,12 +5,10 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ntsalarmclock.alarm.AlarmScheduler
-import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.data.AlarmSettingsRepository
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.example.ntsalarmclock.data.alarmSettingsDataStore
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -20,15 +18,19 @@ import kotlinx.coroutines.launch
 
 private const val NTS_STREAM_URL = "https://stream-relay-geo.ntslive.net/stream"
 
-data class HomeScreenUiState(
-    val enabled: Boolean = true,
-    val hour: Int = 7,
-    val minute: Int = 0,
-    val volume: Int = 70,
-    val streamUrl: String = NTS_STREAM_URL,
-    val enabledDays: Set<DayOfWeekUi> = emptySet(),
-    val progressiveVolume: Boolean = false
-)
+sealed interface HomeScreenUiState {
+    data object Loading : HomeScreenUiState
+
+    data class Success(
+        val enabled: Boolean,
+        val hour: Int,
+        val minute: Int,
+        val volume: Int,
+        val streamUrl: String,
+        val enabledDays: Set<DayOfWeekUi>,
+        val progressiveVolume: Boolean
+    ) : HomeScreenUiState
+}
 
 class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -43,15 +45,24 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
 
     val uiState: StateFlow<HomeScreenUiState> =
         repository.settings
-            .toUiState()
+            .map { settings ->
+                HomeScreenUiState.Success(
+                    enabled = settings.enabled,
+                    hour = settings.hour,
+                    minute = settings.minute,
+                    volume = settings.volume,
+                    streamUrl = NTS_STREAM_URL,
+                    enabledDays = settings.enabledDays,
+                    progressiveVolume = settings.progressiveVolume
+                )
+            }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = HomeScreenUiState()
+                initialValue = HomeScreenUiState.Loading
             )
 
     init {
-        // Single source of truth: whenever alarm-related settings change, reschedule accordingly.
         viewModelScope.launch {
             repository.settings
                 .distinctUntilChanged()
@@ -71,7 +82,8 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onEnabledChange() {
-        val nextEnabled = !uiState.value.enabled
+        val current = uiState.value as? HomeScreenUiState.Success ?: return
+        val nextEnabled = !current.enabled
         Log.d(TAG, "onEnabledChange: $nextEnabled")
         viewModelScope.launch {
             repository.setEnabled(nextEnabled)
@@ -95,15 +107,16 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onHardwareVolumeKey(delta: Int) {
         Log.d(TAG, "onHardwareVolumeKey: $delta")
-        val current = uiState.value.volume
-        val next = (current + delta).coerceIn(0, 100)
+        val current = uiState.value as? HomeScreenUiState.Success ?: return
+        val next = (current.volume + delta).coerceIn(0, 100)
         onVolumeChange(next)
     }
 
     fun onToggleDay(day: DayOfWeekUi) {
+        val current = uiState.value as? HomeScreenUiState.Success ?: return
         viewModelScope.launch {
-            val current = uiState.value.enabledDays
-            val updated = if (current.contains(day)) current - day else current + day
+            val updated =
+                if (current.enabledDays.contains(day)) current.enabledDays - day else current.enabledDays + day
             Log.d(TAG, "onToggleDay: $updated")
             repository.setEnabledDays(updated)
         }
@@ -112,20 +125,6 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
     fun onProgressiveVolumeEnabledChange(progressiveVolumeEnabled: Boolean) {
         viewModelScope.launch {
             repository.setProgressiveVolume(progressiveVolumeEnabled)
-        }
-    }
-
-    private fun Flow<AlarmSettings>.toUiState(): Flow<HomeScreenUiState> {
-        return this.map { settings ->
-            HomeScreenUiState(
-                enabled = settings.enabled,
-                hour = settings.hour,
-                minute = settings.minute,
-                volume = settings.volume,
-                streamUrl = NTS_STREAM_URL,
-                enabledDays = settings.enabledDays,
-                progressiveVolume = settings.progressiveVolume
-            )
         }
     }
 }
