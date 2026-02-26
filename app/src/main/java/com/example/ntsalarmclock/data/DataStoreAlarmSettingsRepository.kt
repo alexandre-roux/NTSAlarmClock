@@ -34,6 +34,7 @@ class DataStoreAlarmSettingsRepository(
 
     override val settings: Flow<AlarmSettings> =
         dataStore.data.map { prefs ->
+            Log.d(TAG, "Raw prefs = $prefs")
             val rawDays = prefs[KEY_ENABLED_DAYS].orEmpty()
 
             val enabledDays = rawDays.mapNotNull { raw ->

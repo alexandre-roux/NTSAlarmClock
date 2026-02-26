@@ -21,10 +21,10 @@ import kotlinx.coroutines.launch
 private const val NTS_STREAM_URL = "https://stream-relay-geo.ntslive.net/stream"
 
 data class HomeScreenUiState(
-    val enabled: Boolean = false,
+    val enabled: Boolean = true,
     val hour: Int = 7,
     val minute: Int = 0,
-    val volume: Int = 25,
+    val volume: Int = 70,
     val streamUrl: String = NTS_STREAM_URL,
     val enabledDays: Set<DayOfWeekUi> = emptySet(),
     val progressiveVolume: Boolean = false

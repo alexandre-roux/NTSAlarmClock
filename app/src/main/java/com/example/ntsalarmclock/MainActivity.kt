@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             NTSAlarmClockTheme {
                 Surface {
-                    HomeScreen()
+                    HomeScreen(viewModel = viewModel)
                 }
             }
         }
