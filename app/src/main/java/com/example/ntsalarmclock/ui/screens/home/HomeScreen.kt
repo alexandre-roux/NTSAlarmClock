@@ -13,11 +13,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun HomeScreen(
-    viewModel: HomeScreenViewModel = viewModel()
+    viewModel: HomeScreenViewModel
 ) {
     val tag = "HomeScreen"
 
@@ -25,7 +24,7 @@ fun HomeScreen(
 
     var isPlaying by remember { mutableStateOf(false) }
 
-    // Volume used by the player, updated live while dragging
+    // Live player volume (changes continuously while dragging)
     var volumeLive by remember { mutableIntStateOf(state.volume) }
 
     // Prevent persisted state updates from fighting with the user's drag gesture
@@ -48,8 +47,7 @@ fun HomeScreen(
         }
     }
 
-    // Sync persisted volume into live volume only when not dragging
-    LaunchedEffect(state.volume) {
+    LaunchedEffect(state.volume, isDraggingVolume) {
         if (!isDraggingVolume) {
             volumeLive = state.volume
         }
@@ -71,18 +69,17 @@ fun HomeScreen(
         },
         onTimeChange = viewModel::onTimeChange,
         onToggleDay = viewModel::onToggleDay,
-        onVolumeLiveChange = { _ ->
+        onVolumeLiveChange = { newVolume ->
             isDraggingVolume = true
+            volumeLive = newVolume.coerceIn(0, 100)
         },
         onVolumeChangeFinished = { finalVolume ->
             isDraggingVolume = false
-            viewModel.onVolumeChange(finalVolume)
+            val clamped = finalVolume.coerceIn(0, 100)
+            volumeLive = clamped
+            viewModel.onVolumeChange(clamped)
         },
-        onAlarmEnabledClick = {
-            viewModel.onEnabledChange()
-        },
-        onProgressiveVolumeEnabledChange = {
-            viewModel.onProgressiveVolumeEnabledChange(it)
-        }
+        onAlarmEnabledClick = viewModel::onEnabledChange,
+        onProgressiveVolumeEnabledChange = viewModel::onProgressiveVolumeEnabledChange
     )
 }
