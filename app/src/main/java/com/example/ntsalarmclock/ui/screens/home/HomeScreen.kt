@@ -30,6 +30,9 @@ fun HomeScreen(
     // Prevent persisted state updates from fighting with the user's drag gesture
     var isDraggingVolume by remember { mutableStateOf(false) }
 
+    // Holds the volume we just persisted until DataStore emits the same value
+    var pendingPersistedVolume by remember { mutableStateOf<Int?>(null) }
+
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner) {
@@ -47,10 +50,24 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(state.volume, isDraggingVolume) {
-        if (!isDraggingVolume) {
-            volumeLive = state.volume
+    // Sync persisted volume into live volume only when:
+    // - user is not dragging
+    // - and we are not waiting for DataStore to catch up after a write
+    LaunchedEffect(state.volume, isDraggingVolume, pendingPersistedVolume) {
+        if (isDraggingVolume) return@LaunchedEffect
+
+        val pending = pendingPersistedVolume
+        if (pending != null) {
+            if (state.volume == pending) {
+                // DataStore caught up, resume normal syncing
+                pendingPersistedVolume = null
+            } else {
+                // Do not overwrite volumeLive with the old value
+                return@LaunchedEffect
+            }
         }
+
+        volumeLive = state.volume
     }
 
     NTSPlayerEffect(
@@ -76,7 +93,10 @@ fun HomeScreen(
         onVolumeChangeFinished = { finalVolume ->
             isDraggingVolume = false
             val clamped = finalVolume.coerceIn(0, 100)
+
             volumeLive = clamped
+            pendingPersistedVolume = clamped
+
             viewModel.onVolumeChange(clamped)
         },
         onAlarmEnabledClick = viewModel::onEnabledChange,
