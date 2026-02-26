@@ -29,7 +29,7 @@ import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 
 @Composable
 fun HomeScreenContent(
-    state: HomeScreenUiState,
+    state: HomeScreenUiState.Success,
     isPlaying: Boolean,
     volumeLive: Int,
     onPlayPauseClick: () -> Unit,
@@ -102,12 +102,14 @@ private fun HomeScreenContentPreview() {
     NTSAlarmClockTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             HomeScreenContent(
-                state = HomeScreenUiState(
+                state = HomeScreenUiState.Success(
                     enabled = true,
                     hour = 7,
                     minute = 0,
                     volume = 70,
-                    enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.WE, DayOfWeekUi.FR)
+                    streamUrl = "https://stream-relay-geo.ntslive.net/stream",
+                    enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.WE, DayOfWeekUi.FR),
+                    progressiveVolume = false
                 ),
                 isPlaying = false,
                 volumeLive = 70,
