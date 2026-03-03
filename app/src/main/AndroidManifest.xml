@@ -5,6 +5,20 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Needed for ForegroundService on modern Android -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- Recommended for alarm style full screen intent -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Android 13+ notifications (you will request at runtime in MainActivity later) -->
+    <uses-permission
+        android:name="android.permission.POST_NOTIFICATIONS"
+        tools:targetApi="33" />
+
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -16,13 +30,13 @@
         android:forceDarkAllowed="false"
         android:theme="@style/Theme.NTSAlarmClock"
         tools:targetApi="29">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.NTSAlarmClock">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -33,11 +47,17 @@
             android:launchMode="singleTask"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
+            android:excludeFromRecents="true"
             tools:ignore="UnusedAttribute" />
 
         <receiver
             android:name=".alarm.AlarmReceiver"
             android:exported="false" />
+
+        <service
+            android:name=".playback.PlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 
 </manifest>

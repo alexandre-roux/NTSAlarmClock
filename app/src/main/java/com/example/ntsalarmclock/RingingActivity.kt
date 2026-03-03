@@ -1,10 +1,14 @@
 package com.example.ntsalarmclock
 
+import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.core.content.ContextCompat
+import com.example.ntsalarmclock.playback.PlaybackService
 import com.example.ntsalarmclock.ui.screens.ring.RingScreen
 
 class RingingActivity : ComponentActivity() {
@@ -12,16 +16,28 @@ class RingingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Show activity on lock screen and turn screen on
         setShowWhenLocked(true)
         setTurnScreenOn(true)
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        startAlarmService()
 
         setContent {
             MaterialTheme {
                 Surface {
-                    RingScreen()
+                    RingScreen(
+                        onDismiss = { finish() }
+                    )
                 }
             }
         }
+    }
+
+    private fun startAlarmService() {
+        val intent = Intent(this, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_START_ALARM
+        }
+        ContextCompat.startForegroundService(this, intent)
     }
 }
