@@ -13,6 +13,7 @@ import android.os.PowerManager
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.RingingActivity
 import com.example.ntsalarmclock.alarm.AlarmNotification.CHANNEL_ID
@@ -21,6 +22,7 @@ import com.example.ntsalarmclock.alarm.AlarmNotification.NOTIFICATION_ID
 import com.example.ntsalarmclock.alarm.AlarmNotification.REQUEST_CODE_FULLSCREEN
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.example.ntsalarmclock.data.alarmSettingsDataStore
+import com.example.ntsalarmclock.playback.PlaybackService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,8 +35,9 @@ class AlarmReceiver : BroadcastReceiver() {
         val wakeLock = acquireShortWakeLock(context)
 
         try {
+            startAlarmService(context)
             ensureNotificationChannel(context)
-            postFullScreenAlarmNotification(context)
+            postFullScreenAlarmNotificationOrFallback(context)
         } finally {
             wakeLock?.let {
                 if (it.isHeld) it.release()
@@ -57,22 +60,37 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun postFullScreenAlarmNotification(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ActivityCompat.checkSelfPermission(
+    private fun startAlarmService(context: Context) {
+        val serviceIntent = Intent(context, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_START_ALARM
+        }
+        ContextCompat.startForegroundService(context, serviceIntent)
+    }
+
+    private fun postFullScreenAlarmNotificationOrFallback(context: Context) {
+        val canPostNotifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
-
-            if (!granted) {
-                // No notification permission, cannot show fullscreen UI
-                return
-            }
+        } else {
+            true
         }
 
         val activityIntent = Intent(context, RingingActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+
+        if (!canPostNotifications) {
+            // Fallback: show the alarm UI even without notification permission.
+            try {
+                context.startActivity(activityIntent)
+            } catch (_: Exception) {
+                // Intentionally ignored
+            }
+            return
         }
 
         val fullScreenPendingIntent = createFullScreenPendingIntent(context, activityIntent)

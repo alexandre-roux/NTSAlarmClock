@@ -18,7 +18,6 @@ class RingingActivity : ComponentActivity() {
 
         setShowWhenLocked(true)
         setTurnScreenOn(true)
-
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         startAlarmService()
@@ -27,11 +26,20 @@ class RingingActivity : ComponentActivity() {
             MaterialTheme {
                 Surface {
                     RingScreen(
-                        onDismiss = { finish() }
+                        onDismiss = {
+                            stopAlarmService()
+                            finish()
+                        }
                     )
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        // Safety net: ensure the service is stopped when leaving the screen.
+        stopAlarmService()
+        super.onDestroy()
     }
 
     private fun startAlarmService() {
@@ -39,5 +47,12 @@ class RingingActivity : ComponentActivity() {
             action = PlaybackService.ACTION_START_ALARM
         }
         ContextCompat.startForegroundService(this, intent)
+    }
+
+    private fun stopAlarmService() {
+        val intent = Intent(this, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_STOP_ALARM
+        }
+        startService(intent)
     }
 }

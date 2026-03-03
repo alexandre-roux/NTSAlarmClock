@@ -1,5 +1,6 @@
 package com.example.ntsalarmclock.playback
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -16,7 +17,7 @@ class PlaybackService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
+        createNotificationChannelIfNeeded()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -33,13 +34,25 @@ class PlaybackService : Service() {
     private fun startAlarm() {
         val notification = buildForegroundNotification()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        // Always call startForeground quickly after startForegroundService().
+        // On Android 10+ we must provide a valid foreground service type.
+        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        } else {
+            0
+        }
+
+        try {
             ServiceCompat.startForeground(
                 this,
                 NOTIFICATION_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                fgsType
             )
+        } catch (_: Exception) {
+            // If we cannot start in the foreground, stop to avoid a stuck service.
+            stopSelf()
+            return
         }
 
         // TODO Start your Media3 playback here (NTS stream, progressive volume, etc.)
@@ -55,7 +68,7 @@ class PlaybackService : Service() {
         stopSelf()
     }
 
-    private fun buildForegroundNotification(): android.app.Notification {
+    private fun buildForegroundNotification(): Notification {
         val stopIntent = Intent(this, PlaybackService::class.java).apply {
             action = ACTION_STOP_ALARM
         }
@@ -74,7 +87,7 @@ class PlaybackService : Service() {
             .build()
     }
 
-    private fun createNotificationChannel() {
+    private fun createNotificationChannelIfNeeded() {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         val channel = NotificationChannel(
