@@ -23,6 +23,7 @@ fun HomeProgressiveVolumeSection(
         )
         Text(
             text = stringResource(R.string.progressive_volume_description),
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
             textAlign = TextAlign.Center,
         )

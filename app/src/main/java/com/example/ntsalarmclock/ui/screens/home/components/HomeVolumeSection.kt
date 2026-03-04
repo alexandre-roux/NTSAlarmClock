@@ -43,7 +43,6 @@ fun HomeVolumeSection(
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(
                 onClick = onPlayPauseClick,
-                modifier = Modifier.size(64.dp)
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,

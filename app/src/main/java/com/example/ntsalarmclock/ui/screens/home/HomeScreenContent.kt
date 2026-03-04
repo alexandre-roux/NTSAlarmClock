@@ -43,11 +43,12 @@ fun HomeScreenContent(
             .windowInsetsPadding(WindowInsets.systemBars)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceAround
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
         HomeTimeSection(
             hour = state.hour,
             minute = state.minute,
+            scheduledInText = state.scheduledInText,
             onTimeChange = onTimeChange
         )
 
@@ -91,7 +92,8 @@ private fun HomeScreenContentPreview() {
                     volume = 70,
                     streamUrl = "https://stream-relay-geo.ntslive.net/stream",
                     enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.WE, DayOfWeekUi.FR),
-                    progressiveVolume = false
+                    progressiveVolume = false,
+                    scheduledInText = "This alarm is scheduled in 10 hours and 12 minutes"
                 ),
                 isPlaying = false,
                 volumeLive = 70,

@@ -35,8 +35,6 @@ class AlarmScheduler(private val context: Context) {
 
         logNextAlarm(triggerAtMillis)
 
-        // This cancel is not strictly required if the PendingIntent is identical,
-        // but it makes behavior explicit and more reliable across devices/OEMs.
         cancel()
         scheduleAt(triggerAtMillis)
     }
@@ -82,7 +80,7 @@ class AlarmScheduler(private val context: Context) {
         )
     }
 
-    private fun computeNextTriggerMillis(
+    fun computeNextTriggerMillis(
         hour: Int,
         minute: Int,
         enabledDays: Set<DayOfWeekUi>
