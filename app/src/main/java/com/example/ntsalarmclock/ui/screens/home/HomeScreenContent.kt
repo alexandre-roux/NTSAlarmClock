@@ -1,5 +1,6 @@
 package com.example.ntsalarmclock.ui.screens.home
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -10,19 +11,15 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import com.example.ntsalarmclock.ui.screens.home.components.HomeDaysSection
 import com.example.ntsalarmclock.ui.screens.home.components.HomeEnableAlarmButton
+import com.example.ntsalarmclock.ui.screens.home.components.HomeProgressiveVolumeSection
 import com.example.ntsalarmclock.ui.screens.home.components.HomeTimeSection
 import com.example.ntsalarmclock.ui.screens.home.components.HomeVolumeSection
 import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
@@ -45,15 +42,14 @@ fun HomeScreenContent(
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.systemBars)
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceAround
     ) {
         HomeTimeSection(
             hour = state.hour,
             minute = state.minute,
             onTimeChange = onTimeChange
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         HomeVolumeSection(
             isPlaying = isPlaying,
@@ -63,31 +59,17 @@ fun HomeScreenContent(
             onVolumeChangeFinished = onVolumeChangeFinished
         )
 
-        Text(
-            text = stringResource(R.string.progressive_volume),
-            style = MaterialTheme.typography.headlineLarge
+        HomeProgressiveVolumeSection(
+            state = state,
+            onProgressiveVolumeEnabledChange = onProgressiveVolumeEnabledChange
         )
-        Text(
-            text = stringResource(R.string.progressive_volume_description),
-            color = MaterialTheme.colorScheme.secondary,
-            textAlign = TextAlign.Center,
-        )
-
-        Switch(
-            checked = state.progressiveVolume,
-            onCheckedChange = {
-                onProgressiveVolumeEnabledChange(it)
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         HomeDaysSection(
             selectedDays = state.enabledDays,
             onToggleDay = onToggleDay
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         HomeEnableAlarmButton(
             isAlarmEnabled = state.enabled,

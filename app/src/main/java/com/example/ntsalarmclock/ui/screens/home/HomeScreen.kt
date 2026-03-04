@@ -23,7 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun HomeScreen(
     viewModel: HomeScreenViewModel
 ) {
-    val tag = "HomeScreen"
+    val TAG = "HomeScreen"
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -52,7 +52,7 @@ fun HomeScreen(
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_STOP) {
-                        Log.d(tag, "App lost focus, stop stream")
+                        Log.d(TAG, "App lost focus, stop stream")
                         isPlaying = false
                     }
                 }
@@ -91,7 +91,7 @@ fun HomeScreen(
                 volumeLive = volumeLive,
                 onPlayPauseClick = {
                     isPlaying = !isPlaying
-                    Log.d(tag, "isPlaying=$isPlaying")
+                    Log.d(TAG, "isPlaying=$isPlaying")
                 },
                 onTimeChange = viewModel::onTimeChange,
                 onToggleDay = viewModel::onToggleDay,

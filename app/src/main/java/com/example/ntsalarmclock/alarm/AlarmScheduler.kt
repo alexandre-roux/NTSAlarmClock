@@ -12,13 +12,13 @@ import java.util.Calendar
 import java.util.Locale
 
 class AlarmScheduler(private val context: Context) {
-    private val tag = "AlarmScheduler"
+    private val TAG = "AlarmScheduler"
 
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
     fun scheduleNextFromSettings(settings: AlarmSettings) {
         Log.d(
-            tag,
+            TAG,
             "scheduleNextFromSettings: enabled=${settings.enabled}, time=${settings.hour}:${settings.minute}, days=${settings.enabledDays}"
         )
 
@@ -42,7 +42,7 @@ class AlarmScheduler(private val context: Context) {
     }
 
     fun cancel() {
-        Log.d(tag, "cancel")
+        Log.d(TAG, "cancel")
         alarmManager.cancel(alarmPendingIntent())
     }
 
@@ -145,7 +145,7 @@ class AlarmScheduler(private val context: Context) {
                     twoDigits(calendar.get(Calendar.HOUR_OF_DAY)) + ":" +
                     twoDigits(calendar.get(Calendar.MINUTE))
 
-        Log.d(tag, "Next alarm scheduled for: $dayLabel, $dateLabel (millis=$triggerAtMillis)")
+        Log.d(TAG, "Next alarm scheduled for: $dayLabel, $dateLabel (millis=$triggerAtMillis)")
     }
 
     private fun dayOfWeekLabel(dayOfWeek: Int): String {
