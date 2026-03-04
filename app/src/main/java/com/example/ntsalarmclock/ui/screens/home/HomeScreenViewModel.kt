@@ -5,10 +5,12 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ntsalarmclock.alarm.AlarmScheduler
+import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.data.AlarmSettingsRepository
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.example.ntsalarmclock.data.alarmSettingsDataStore
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -43,8 +45,25 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
     private val repository: AlarmSettingsRepository =
         DataStoreAlarmSettingsRepository(app.applicationContext.alarmSettingsDataStore)
 
-    val uiState: StateFlow<HomeScreenUiState> =
+    private val defaultSettings = AlarmSettings(
+        enabled = true,
+        hour = 7,
+        minute = 0,
+        volume = 70,
+        enabledDays = emptySet(),
+        progressiveVolume = false
+    )
+
+    private val settingsState: StateFlow<AlarmSettings> =
         repository.settings
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = defaultSettings
+            )
+
+    val uiState: StateFlow<HomeScreenUiState> =
+        settingsState
             .map { settings ->
                 HomeScreenUiState.Success(
                     enabled = settings.enabled,
@@ -64,7 +83,7 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
-            repository.settings
+            schedulingSettingsFlow(settingsState)
                 .distinctUntilChanged()
                 .collect { settings ->
                     Log.d(
@@ -78,6 +97,15 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
                         scheduler.cancel()
                     }
                 }
+        }
+    }
+
+    private fun schedulingSettingsFlow(settings: StateFlow<AlarmSettings>): Flow<AlarmSettings> {
+        return settings.map { current ->
+            current.copy(
+                volume = 0,
+                progressiveVolume = false
+            )
         }
     }
 
