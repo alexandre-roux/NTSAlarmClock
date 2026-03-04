@@ -10,10 +10,13 @@ import com.example.ntsalarmclock.data.AlarmSettingsRepository
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.example.ntsalarmclock.data.alarmSettingsDataStore
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -30,7 +33,8 @@ sealed interface HomeScreenUiState {
         val volume: Int,
         val streamUrl: String,
         val enabledDays: Set<DayOfWeekUi>,
-        val progressiveVolume: Boolean
+        val progressiveVolume: Boolean,
+        val scheduledInText: String
     ) : HomeScreenUiState
 }
 
@@ -62,24 +66,33 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
                 initialValue = defaultSettings
             )
 
+    private val nowMillisFlow: Flow<Long> = flow {
+        emit(System.currentTimeMillis())
+        while (true) {
+            delay(60_000)
+            emit(System.currentTimeMillis())
+        }
+    }
+
     val uiState: StateFlow<HomeScreenUiState> =
-        settingsState
-            .map { settings ->
-                HomeScreenUiState.Success(
-                    enabled = settings.enabled,
-                    hour = settings.hour,
-                    minute = settings.minute,
-                    volume = settings.volume,
-                    streamUrl = NTS_STREAM_URL,
-                    enabledDays = settings.enabledDays,
-                    progressiveVolume = settings.progressiveVolume
-                )
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = HomeScreenUiState.Loading
+        combine(settingsState, nowMillisFlow) { settings, nowMillis ->
+            val scheduledInText = buildScheduledInText(settings, nowMillis)
+
+            HomeScreenUiState.Success(
+                enabled = settings.enabled,
+                hour = settings.hour,
+                minute = settings.minute,
+                volume = settings.volume,
+                streamUrl = NTS_STREAM_URL,
+                enabledDays = settings.enabledDays,
+                progressiveVolume = settings.progressiveVolume,
+                scheduledInText = scheduledInText
             )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = HomeScreenUiState.Loading
+        )
 
     init {
         viewModelScope.launch {
@@ -107,6 +120,48 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
                 progressiveVolume = false
             )
         }
+    }
+
+    private fun buildScheduledInText(settings: AlarmSettings, nowMillis: Long): String {
+        if (!settings.enabled) return ""
+
+        val triggerAtMillis = scheduler.computeNextTriggerMillis(
+            hour = settings.hour,
+            minute = settings.minute,
+            enabledDays = settings.enabledDays
+        )
+
+        val deltaMillis = triggerAtMillis - nowMillis
+        if (deltaMillis <= 0L) return ""
+
+        val totalMinutes = deltaMillis / 60_000
+        if (totalMinutes <= 0L) return "This alarm is scheduled in less than 1 minute"
+
+        val hours = (totalMinutes / 60).toInt()
+        val minutes = (totalMinutes % 60).toInt()
+
+        return when {
+            hours > 0 && minutes > 0 -> {
+                "This alarm is scheduled in ${hours} ${
+                    pluralize(
+                        hours,
+                        "hour"
+                    )
+                } and ${minutes} ${pluralize(minutes, "minute")}"
+            }
+
+            hours > 0 -> {
+                "This alarm is scheduled in ${hours} ${pluralize(hours, "hour")}"
+            }
+
+            else -> {
+                "This alarm is scheduled in ${minutes} ${pluralize(minutes, "minute")}"
+            }
+        }
+    }
+
+    private fun pluralize(value: Int, word: String): String {
+        return if (value == 1) word else "${word}s"
     }
 
     fun onEnabledChange() {
