@@ -49,23 +49,6 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
     private val repository: AlarmSettingsRepository =
         DataStoreAlarmSettingsRepository(app.applicationContext.alarmSettingsDataStore)
 
-    private val defaultSettings = AlarmSettings(
-        enabled = true,
-        hour = 7,
-        minute = 0,
-        volume = 70,
-        enabledDays = emptySet(),
-        progressiveVolume = false
-    )
-
-    private val settingsState: StateFlow<AlarmSettings> =
-        repository.settings
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = defaultSettings
-            )
-
     private val nowMillisFlow: Flow<Long> = flow {
         emit(System.currentTimeMillis())
         while (true) {
@@ -75,7 +58,7 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val uiState: StateFlow<HomeScreenUiState> =
-        combine(settingsState, nowMillisFlow) { settings, nowMillis ->
+        combine(repository.settings, nowMillisFlow) { settings, nowMillis ->
             val scheduledInText = buildScheduledInText(settings, nowMillis)
 
             HomeScreenUiState.Success(
@@ -96,7 +79,14 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
-            schedulingSettingsFlow(settingsState)
+            repository.settings
+                .map { current ->
+                    // Keep only fields that impact alarm scheduling.
+                    current.copy(
+                        volume = 0,
+                        progressiveVolume = false
+                    )
+                }
                 .distinctUntilChanged()
                 .collect { settings ->
                     Log.d(
@@ -110,15 +100,6 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
                         scheduler.cancel()
                     }
                 }
-        }
-    }
-
-    private fun schedulingSettingsFlow(settings: StateFlow<AlarmSettings>): Flow<AlarmSettings> {
-        return settings.map { current ->
-            current.copy(
-                volume = 0,
-                progressiveVolume = false
-            )
         }
     }
 
