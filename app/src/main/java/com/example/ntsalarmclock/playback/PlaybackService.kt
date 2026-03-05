@@ -106,6 +106,12 @@ class PlaybackService : Service() {
             "notifEnabled=$notificationsEnabled, postPerm=$hasPostNotificationsPermission, channelImportance=$channelImportance"
         )
 
+        if (!notificationsEnabled || !hasPostNotificationsPermission) {
+            throw IllegalStateException(
+                "Notifications are not allowed. notifEnabled=$notificationsEnabled, postPerm=$hasPostNotificationsPermission"
+            )
+        }
+
         val activityIntent = Intent(this, RingingActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -139,7 +145,6 @@ class PlaybackService : Service() {
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(fullScreenPendingIntent)
-            // Key change: always set full screen intent
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .addAction(R.drawable.ic_launcher_foreground, "Stop", stopPendingIntent)
             .build()
