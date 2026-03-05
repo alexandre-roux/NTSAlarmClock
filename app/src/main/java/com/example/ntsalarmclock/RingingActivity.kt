@@ -37,7 +37,6 @@ class RingingActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        // Safety net: ensure the service is stopped when leaving the screen.
         stopAlarmService()
         super.onDestroy()
     }

@@ -1,28 +1,22 @@
 package com.example.ntsalarmclock.alarm
 
 import android.Manifest
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.PowerManager
-import androidx.core.app.ActivityCompat
+import android.util.Log
+import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.RingingActivity
-import com.example.ntsalarmclock.alarm.AlarmNotification.CHANNEL_ID
-import com.example.ntsalarmclock.alarm.AlarmNotification.CHANNEL_NAME
-import com.example.ntsalarmclock.alarm.AlarmNotification.NOTIFICATION_ID
-import com.example.ntsalarmclock.alarm.AlarmNotification.REQUEST_CODE_FULLSCREEN
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.example.ntsalarmclock.data.alarmSettingsDataStore
-import com.example.ntsalarmclock.playback.PlaybackService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,21 +25,21 @@ import kotlinx.coroutines.launch
 
 class AlarmReceiver : BroadcastReceiver() {
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onReceive(context: Context, intent: Intent?) {
         val wakeLock = acquireShortWakeLock(context)
 
-        try {
-            startAlarmService(context)
-            ensureNotificationChannel(context)
-            postFullScreenAlarmNotificationOrFallback(context)
-        } finally {
-            wakeLock?.let {
-                if (it.isHeld) it.release()
-            }
-        }
-
         val pendingResult = goAsync()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        try {
+            ensureAlarmNotificationChannel(context)
+            showFullScreenAlarmNotification(context)
+        } catch (t: Throwable) {
+            Log.e(TAG, "AlarmReceiver failed", t)
+        } finally {
+            wakeLock?.let { if (it.isHeld) it.release() }
+        }
 
         scope.launch {
             try {
@@ -60,80 +54,59 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun startAlarmService(context: Context) {
-        val serviceIntent = Intent(context, PlaybackService::class.java).apply {
-            action = PlaybackService.ACTION_START_ALARM
-        }
-        ContextCompat.startForegroundService(context, serviceIntent)
-    }
-
-    private fun postFullScreenAlarmNotificationOrFallback(context: Context) {
-        val canPostNotifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
-
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+    private fun showFullScreenAlarmNotification(context: Context) {
         val activityIntent = Intent(context, RingingActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
 
-        if (!canPostNotifications) {
-            // Fallback: show the alarm UI even without notification permission.
-            try {
-                context.startActivity(activityIntent)
-            } catch (_: Exception) {
-                // Intentionally ignored
-            }
-            return
-        }
+        val fullScreenPendingIntent = PendingIntent.getActivity(
+            context,
+            AlarmNotification.REQUEST_CODE_FULLSCREEN,
+            activityIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
-        val fullScreenPendingIntent = createFullScreenPendingIntent(context, activityIntent)
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, AlarmNotification.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText("Alarm ringing")
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
+            .setContentIntent(fullScreenPendingIntent)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
-    }
-
-    private fun createFullScreenPendingIntent(context: Context, intent: Intent): PendingIntent {
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        return PendingIntent.getActivity(
-            context,
-            REQUEST_CODE_FULLSCREEN,
-            intent,
-            flags
+        NotificationManagerCompat.from(context).notify(
+            AlarmNotification.NOTIFICATION_ID,
+            notification
         )
     }
 
-    private fun ensureNotificationChannel(context: Context) {
+    private fun ensureAlarmNotificationChannel(context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val existing = manager.getNotificationChannel(AlarmNotification.CHANNEL_ID)
+        if (existing != null) return
 
         val channel = NotificationChannel(
-            CHANNEL_ID,
-            CHANNEL_NAME,
+            AlarmNotification.CHANNEL_ID,
+            AlarmNotification.CHANNEL_NAME,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "Alarm notifications"
             setSound(null, null)
             enableVibration(false)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
 
         manager.createNotificationChannel(channel)
+
+        Log.d(TAG, "Notification channel created: ${AlarmNotification.CHANNEL_ID}")
     }
 
     private fun acquireShortWakeLock(context: Context): PowerManager.WakeLock? {
@@ -148,5 +121,9 @@ class AlarmReceiver : BroadcastReceiver() {
         } catch (_: Exception) {
             null
         }
+    }
+
+    companion object {
+        private const val TAG = "AlarmReceiver"
     }
 }
