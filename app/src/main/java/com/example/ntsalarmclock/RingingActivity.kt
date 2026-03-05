@@ -36,11 +36,6 @@ class RingingActivity : ComponentActivity() {
         }
     }
 
-    override fun onDestroy() {
-        stopAlarmService()
-        super.onDestroy()
-    }
-
     private fun startAlarmService() {
         val intent = Intent(this, PlaybackService::class.java).apply {
             action = PlaybackService.ACTION_START_ALARM

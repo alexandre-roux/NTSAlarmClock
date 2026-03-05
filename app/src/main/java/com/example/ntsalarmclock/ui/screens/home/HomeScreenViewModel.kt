@@ -4,11 +4,9 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.ntsalarmclock.alarm.AlarmScheduler
+import com.example.ntsalarmclock.NTSAlarmClockApplication
 import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.data.AlarmSettingsRepository
-import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
-import com.example.ntsalarmclock.data.alarmSettingsDataStore
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -44,10 +42,18 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         private const val TAG = "HomeScreenViewModel"
     }
 
-    private val scheduler = AlarmScheduler(app.applicationContext)
+    private val appContext = getApplication<NTSAlarmClockApplication>()
 
-    private val repository: AlarmSettingsRepository =
-        DataStoreAlarmSettingsRepository(app.applicationContext.alarmSettingsDataStore)
+    private val scheduler = appContext.alarmScheduler
+
+    private val repository: AlarmSettingsRepository = appContext.repository
+
+    private data class SchedulingConfig(
+        val enabled: Boolean,
+        val hour: Int,
+        val minute: Int,
+        val enabledDays: Set<DayOfWeekUi>
+    )
 
     private val nowMillisFlow: Flow<Long> = flow {
         emit(System.currentTimeMillis())
@@ -81,21 +87,31 @@ class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repository.settings
                 .map { current ->
-                    // Keep only fields that impact alarm scheduling.
-                    current.copy(
-                        volume = 0,
-                        progressiveVolume = false
+                    SchedulingConfig(
+                        enabled = current.enabled,
+                        hour = current.hour,
+                        minute = current.minute,
+                        enabledDays = current.enabledDays
                     )
                 }
                 .distinctUntilChanged()
-                .collect { settings ->
+                .collect { config ->
                     Log.d(
                         TAG,
-                        "settings changed: enabled=${settings.enabled}, time=${settings.hour}:${settings.minute}, days=${settings.enabledDays}"
+                        "settings changed: enabled=${config.enabled}, time=${config.hour}:${config.minute}, days=${config.enabledDays}"
                     )
 
-                    if (settings.enabled) {
-                        scheduler.scheduleNextFromSettings(settings)
+                    if (config.enabled) {
+                        scheduler.scheduleNextFromSettings(
+                            AlarmSettings(
+                                enabled = true,
+                                hour = config.hour,
+                                minute = config.minute,
+                                volume = 0,
+                                enabledDays = config.enabledDays,
+                                progressiveVolume = false
+                            )
+                        )
                     } else {
                         scheduler.cancel()
                     }

@@ -5,10 +5,12 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
 class DataStoreAlarmSettingsRepository(
@@ -33,23 +35,25 @@ class DataStoreAlarmSettingsRepository(
     private val TAG = "DataStoreAlarmSettingsRepository"
 
     override val settings: Flow<AlarmSettings> =
-        dataStore.data.map { prefs ->
-            Log.d(TAG, "Raw prefs = $prefs")
-            val rawDays = prefs[KEY_ENABLED_DAYS].orEmpty()
+        dataStore.data
+            .catch { emit(emptyPreferences()) }
+            .map { prefs ->
+                Log.d(TAG, "Raw prefs = $prefs")
+                val rawDays = prefs[KEY_ENABLED_DAYS].orEmpty()
 
-            val enabledDays = rawDays.mapNotNull { raw ->
-                runCatching { DayOfWeekUi.valueOf(raw) }.getOrNull()
-            }.toSet()
+                val enabledDays = rawDays.mapNotNull { raw ->
+                    runCatching { DayOfWeekUi.valueOf(raw) }.getOrNull()
+                }.toSet()
 
-            AlarmSettings(
-                enabled = prefs[KEY_ENABLED] ?: DEFAULT_ENABLED,
-                hour = prefs[KEY_HOUR] ?: DEFAULT_HOUR,
-                minute = prefs[KEY_MINUTE] ?: DEFAULT_MINUTE,
-                volume = prefs[KEY_VOLUME] ?: DEFAULT_VOLUME,
-                enabledDays = enabledDays,
-                progressiveVolume = prefs[KEY_PROGRESSIVE_VOLUME] ?: DEFAULT_PROGRESSIVE_VOLUME
-            )
-        }
+                AlarmSettings(
+                    enabled = prefs[KEY_ENABLED] ?: DEFAULT_ENABLED,
+                    hour = prefs[KEY_HOUR] ?: DEFAULT_HOUR,
+                    minute = prefs[KEY_MINUTE] ?: DEFAULT_MINUTE,
+                    volume = prefs[KEY_VOLUME] ?: DEFAULT_VOLUME,
+                    enabledDays = enabledDays,
+                    progressiveVolume = prefs[KEY_PROGRESSIVE_VOLUME] ?: DEFAULT_PROGRESSIVE_VOLUME
+                )
+            }
 
     override suspend fun setEnabled(enabled: Boolean) {
         Log.d(TAG, "setEnabled: $enabled")

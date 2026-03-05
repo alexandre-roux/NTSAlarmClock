@@ -4,19 +4,17 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.PowerManager
 import android.util.Log
-import androidx.annotation.RequiresPermission
-import androidx.core.app.NotificationCompat
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
-import com.example.ntsalarmclock.R
-import com.example.ntsalarmclock.RingingActivity
-import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
-import com.example.ntsalarmclock.data.alarmSettingsDataStore
+import androidx.core.content.ContextCompat
+import com.example.ntsalarmclock.NTSAlarmClockApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,16 +23,22 @@ import kotlinx.coroutines.launch
 
 class AlarmReceiver : BroadcastReceiver() {
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onReceive(context: Context, intent: Intent?) {
         val wakeLock = acquireShortWakeLock(context)
 
         val pendingResult = goAsync()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+        val app = context.applicationContext as NTSAlarmClockApplication
+
         try {
             ensureAlarmNotificationChannel(context)
-            showFullScreenAlarmNotification(context)
+
+            if (canPostNotifications(context)) {
+                postAlarmNotification(context)
+            } else {
+                Log.e(TAG, "Cannot post notifications, alarm UI may not appear on some devices")
+            }
         } catch (t: Throwable) {
             Log.e(TAG, "AlarmReceiver failed", t)
         } finally {
@@ -43,49 +47,47 @@ class AlarmReceiver : BroadcastReceiver() {
 
         scope.launch {
             try {
-                val repository = DataStoreAlarmSettingsRepository(context.alarmSettingsDataStore)
-                val settings = repository.settings.first()
-                AlarmScheduler(context).scheduleNextFromSettings(settings)
-            } catch (_: Exception) {
-                // Intentionally ignored
+                val settings = app.repository.settings.first()
+                app.alarmScheduler.scheduleNextFromSettings(settings)
+            } catch (t: Throwable) {
+                Log.e(TAG, "Failed to schedule next alarm", t)
             } finally {
                 pendingResult.finish()
             }
         }
     }
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
-    private fun showFullScreenAlarmNotification(context: Context) {
-        val activityIntent = Intent(context, RingingActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-
-        val fullScreenPendingIntent = PendingIntent.getActivity(
-            context,
-            AlarmNotification.REQUEST_CODE_FULLSCREEN,
-            activityIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, AlarmNotification.CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(context.getString(R.string.app_name))
-            .setContentText("Alarm ringing")
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setContentIntent(fullScreenPendingIntent)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
+    private fun postAlarmNotification(context: Context) {
+        val notification = AlarmNotification
+            .buildAlarmNotification(context)
             .build()
 
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
         NotificationManagerCompat.from(context).notify(
             AlarmNotification.NOTIFICATION_ID,
             notification
         )
+    }
+
+    private fun canPostNotifications(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun ensureAlarmNotificationChannel(context: Context) {
@@ -105,7 +107,6 @@ class AlarmReceiver : BroadcastReceiver() {
         }
 
         manager.createNotificationChannel(channel)
-
         Log.d(TAG, "Notification channel created: ${AlarmNotification.CHANNEL_ID}")
     }
 
