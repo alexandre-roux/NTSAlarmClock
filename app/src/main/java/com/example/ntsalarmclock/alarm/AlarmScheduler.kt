@@ -15,8 +15,9 @@ import java.util.Locale
 /**
  * Responsible for scheduling and cancelling alarms using AlarmManager.
  *
- * This class computes the next alarm time based on the user's settings
- * and schedules it with AlarmManager.
+ * Behavior:
+ * - If no day is selected, the alarm is treated as a one shot alarm
+ * - If one or more days are selected, the alarm is treated as recurring
  */
 class AlarmScheduler(private val context: Context) {
 
@@ -33,7 +34,7 @@ class AlarmScheduler(private val context: Context) {
             "scheduleNextFromSettings: enabled=${settings.enabled}, time=${settings.hour}:${settings.minute}, days=${settings.enabledDays}"
         )
 
-        // If the alarm is disabled, cancel any existing scheduled alarm
+        // Cancel any existing alarm if the feature is disabled.
         if (!settings.enabled) {
             cancel()
             return
@@ -47,12 +48,13 @@ class AlarmScheduler(private val context: Context) {
 
         logNextAlarm(triggerAtMillis)
 
+        // Replace any previously scheduled alarm with the new one.
         cancel()
         scheduleAt(triggerAtMillis)
     }
 
     /**
-     * Cancels any scheduled alarm.
+     * Cancels the currently scheduled alarm, if any.
      */
     fun cancel() {
         Log.d(TAG, "cancel")
@@ -61,11 +63,16 @@ class AlarmScheduler(private val context: Context) {
 
     /**
      * Schedules an alarm at the given timestamp.
+     *
+     * On modern Android versions, setAlarmClock() is preferred for alarm apps
+     * because the system treats it as a real user facing alarm.
+     *
+     * If exact alarms are not allowed, the code falls back to inexact scheduling.
      */
     private fun scheduleAt(triggerAtMillis: Long) {
         val pendingIntent = alarmPendingIntent()
 
-        // On Android 12+, exact alarms may be restricted by user or system settings.
+        // On Android 12+, exact alarms may be restricted by system policy or user settings.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
             Log.w(TAG, "Exact alarms are not allowed, falling back to inexact scheduling")
             alarmManager.set(
@@ -77,6 +84,7 @@ class AlarmScheduler(private val context: Context) {
         }
 
         try {
+            // This intent is used by the system for the "next alarm" affordance.
             val showIntent = Intent(context, RingingActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -97,7 +105,7 @@ class AlarmScheduler(private val context: Context) {
 
             Log.d(TAG, "Alarm scheduled with setAlarmClock()")
         } catch (_: SecurityException) {
-            // Final fallback in case exact scheduling is rejected.
+            // Final fallback if exact scheduling is rejected.
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 triggerAtMillis,
@@ -109,7 +117,7 @@ class AlarmScheduler(private val context: Context) {
     }
 
     /**
-     * Creates the PendingIntent that will trigger AlarmReceiver.
+     * Creates the PendingIntent that triggers AlarmReceiver.
      */
     private fun alarmPendingIntent(): PendingIntent {
         return PendingIntent.getBroadcast(
@@ -121,7 +129,12 @@ class AlarmScheduler(private val context: Context) {
     }
 
     /**
-     * Computes the next alarm timestamp based on hour, minute and enabled days.
+     * Computes the next alarm timestamp from the selected time and days.
+     *
+     * Rules:
+     * - If no day is selected, schedule a one shot alarm at the next future occurrence
+     *   of the selected time
+     * - If days are selected, schedule the next matching day and time
      */
     fun computeNextTriggerMillis(
         hour: Int,
@@ -134,13 +147,14 @@ class AlarmScheduler(private val context: Context) {
         if (enabledDays.isEmpty()) {
             val candidate = Calendar.getInstance().apply {
                 timeInMillis = now.timeInMillis
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
                 set(Calendar.HOUR_OF_DAY, hour)
                 set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
             }
 
-            // If today's time has already passed, schedule for tomorrow.
+            // If the selected time has already passed today,
+            // schedule the alarm for tomorrow.
             if (candidate.timeInMillis <= now.timeInMillis) {
                 candidate.add(Calendar.DAY_OF_YEAR, 1)
             }
@@ -150,34 +164,36 @@ class AlarmScheduler(private val context: Context) {
 
         val effectiveDays = enabledDays.map { it.toCalendarDayOfWeek() }.toSet()
 
-        // Look up to 7 days ahead to find the next valid recurring alarm time.
+        // Search the next valid occurrence across the next 7 days.
         for (offset in 0..6) {
             val candidate = Calendar.getInstance().apply {
                 timeInMillis = now.timeInMillis
                 add(Calendar.DAY_OF_YEAR, offset)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
                 set(Calendar.HOUR_OF_DAY, hour)
                 set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
             }
 
             val candidateDay = candidate.get(Calendar.DAY_OF_WEEK)
 
-            if (!effectiveDays.contains(candidateDay)) continue
+            if (!effectiveDays.contains(candidateDay)) {
+                continue
+            }
 
             if (candidate.timeInMillis > now.timeInMillis) {
                 return candidate.timeInMillis
             }
         }
 
-        // Safety fallback. This should rarely be reached for recurring alarms.
+        // Safety fallback. This should rarely be reached.
         val fallback = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
             add(Calendar.DAY_OF_YEAR, 1)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
         }
 
         return fallback.timeInMillis
@@ -187,7 +203,9 @@ class AlarmScheduler(private val context: Context) {
      * Logs the next scheduled alarm in a readable format.
      */
     private fun logNextAlarm(triggerAtMillis: Long) {
-        val calendar = Calendar.getInstance().apply { timeInMillis = triggerAtMillis }
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = triggerAtMillis
+        }
 
         val dayLabel = dayOfWeekLabel(calendar.get(Calendar.DAY_OF_WEEK))
         val dateLabel =
@@ -201,6 +219,9 @@ class AlarmScheduler(private val context: Context) {
         Log.d(TAG, "Next alarm scheduled for: $dayLabel, $dateLabel (millis=$triggerAtMillis)")
     }
 
+    /**
+     * Converts a Calendar day constant into a readable English label.
+     */
     private fun dayOfWeekLabel(dayOfWeek: Int): String {
         return when (dayOfWeek) {
             Calendar.MONDAY -> "Monday"
@@ -214,10 +235,15 @@ class AlarmScheduler(private val context: Context) {
         }
     }
 
-    private fun twoDigits(value: Int): String = String.format(Locale.US, "%02d", value)
+    /**
+     * Formats an integer as a two digit string.
+     */
+    private fun twoDigits(value: Int): String {
+        return String.format(Locale.US, "%02d", value)
+    }
 
     /**
-     * Converts the UI enum to Calendar day constants.
+     * Converts the UI enum into Calendar day constants.
      */
     private fun DayOfWeekUi.toCalendarDayOfWeek(): Int {
         return when (this) {
@@ -231,6 +257,9 @@ class AlarmScheduler(private val context: Context) {
         }
     }
 
+    /**
+     * Returns the flags used for all PendingIntents created by this scheduler.
+     */
     private fun pendingIntentFlags(): Int {
         return PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     }
