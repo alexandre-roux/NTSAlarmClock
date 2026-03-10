@@ -72,12 +72,16 @@ class AlarmReceiver : BroadcastReceiver() {
                     // Disable it after it fires so it is not scheduled again.
                     Log.d(TAG, "One shot alarm fired, disabling it without rescheduling")
                     app.repository.setEnabled(false)
-                    app.alarmScheduler.cancel()
+                    app.alarmScheduler.cancelAlarm()
                 } else {
                     // Selected days mean this is a recurring alarm.
                     // Schedule the next valid occurrence.
                     Log.d(TAG, "Recurring alarm fired, scheduling next occurrence")
-                    app.alarmScheduler.scheduleNextFromSettings(settings)
+                    app.alarmScheduler.scheduleNextAlarm(
+                        hour = settings.hour,
+                        minute = settings.minute,
+                        enabledDays = settings.enabledDays
+                    )
                 }
             } catch (t: Throwable) {
                 Log.e(TAG, "Failed to handle post alarm scheduling", t)
