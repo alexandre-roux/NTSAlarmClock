@@ -18,6 +18,13 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+/**
+ * Row displaying the seven selectable days of the week.
+ *
+ * Each day is rendered as a square button that can be toggled on or off.
+ * The parent screen owns the selected state and provides the current set
+ * of selected days.
+ */
 @Composable
 fun DaysOfWeekRow(
     selectedDays: Set<DayOfWeekUi>,
@@ -29,8 +36,10 @@ fun DaysOfWeekRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Render one button for each day of the week.
         DayOfWeekUi.entries.forEach { day ->
-            val isSelected = selectedDays.contains(day)
+            val isSelected = day in selectedDays
+
             DayButton(
                 label = day.shortLabel,
                 selected = isSelected,
@@ -40,6 +49,13 @@ fun DaysOfWeekRow(
     }
 }
 
+/**
+ * Single square button representing one day of the week.
+ *
+ * The visual style changes depending on whether the day is selected:
+ * - Selected: white background with black text
+ * - Not selected: black background with white text and white border
+ */
 @Composable
 private fun DayButton(
     label: String,
