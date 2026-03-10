@@ -24,16 +24,18 @@ import androidx.compose.ui.unit.dp
  * - black bold text
  * - centered content
  *
- * The caller provides the button label and the click action.
+ * The caller provides the button label, an optional [modifier],
+ * and the click action.
  */
 @Composable
 fun NTSButton(
     text: String,
+    modifier: Modifier = Modifier,
     textStyle: TextStyle = MaterialTheme.typography.headlineMedium,
     onClick: () -> Unit
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RectangleShape)
             .background(Color.White)
             .clickable { onClick() }

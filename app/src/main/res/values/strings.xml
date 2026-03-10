@@ -12,4 +12,5 @@
     <string name="this_app_needs_notification_permission_to_work">This app needs notification permission to be able to run the alarm</string>
     <string name="allow_notifications">ALLOW NOTIFICATIONS</string>
     <string name="open_settings">OPEN SETTINGS</string>
+    <string name="alarm_ringing">TIME TO TUNE IN!</string>
 </resources>

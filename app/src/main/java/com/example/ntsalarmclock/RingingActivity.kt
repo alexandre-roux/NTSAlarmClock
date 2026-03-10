@@ -5,11 +5,11 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.core.content.ContextCompat
 import com.example.ntsalarmclock.playback.PlaybackService
 import com.example.ntsalarmclock.ui.screens.ring.RingScreen
+import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 
 /**
  * Activity displayed when the alarm fires.
@@ -39,7 +39,7 @@ class RingingActivity : ComponentActivity() {
         startAlarmService()
 
         setContent {
-            MaterialTheme {
+            NTSAlarmClockTheme {
                 Surface {
                     RingScreen(
                         onDismiss = {
