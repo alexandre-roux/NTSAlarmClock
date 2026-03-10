@@ -4,23 +4,21 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.ntsalarmclock.NTSAlarmClockApplication
+import com.example.ntsalarmclock.alarm.AlarmScheduler
 import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.data.AlarmSettingsRepository
+import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
+import com.example.ntsalarmclock.data.alarmSettingsDataStore
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/**
- * Stream URL used for the NTS radio playback.
- */
+private const val TAG = "HomeScreenViewModel"
 private const val NTS_STREAM_URL = "https://stream-relay-geo.ntslive.net/stream"
 
 /**
@@ -34,215 +32,137 @@ sealed interface HomeScreenUiState {
         val hour: Int,
         val minute: Int,
         val volume: Int,
-        val streamUrl: String,
         val enabledDays: Set<DayOfWeekUi>,
         val progressiveVolume: Boolean,
-        val scheduledInText: String
+        val streamUrl: String
     ) : HomeScreenUiState
 }
 
 /**
- * ViewModel responsible for managing the Home screen state.
+ * Minimal scheduling model containing only the fields that impact
+ * alarm planning.
+ *
+ * Volume and progressive volume are intentionally excluded because
+ * they do not affect when the next alarm should ring.
  */
-class HomeScreenViewModel(app: Application) : AndroidViewModel(app) {
+data class AlarmScheduleConfig(
+    val enabled: Boolean,
+    val hour: Int,
+    val minute: Int,
+    val enabledDays: Set<DayOfWeekUi>
+)
 
-    companion object {
-        private const val TAG = "HomeScreenViewModel"
-    }
+class HomeScreenViewModel(
+    application: Application
+) : AndroidViewModel(application) {
 
-    private val appContext = getApplication<NTSAlarmClockApplication>()
-    private val scheduler = appContext.alarmScheduler
-    private val repository: AlarmSettingsRepository = appContext.repository
+    private val repository: AlarmSettingsRepository =
+        DataStoreAlarmSettingsRepository(application.alarmSettingsDataStore)
 
-    /**
-     * Emits the current time immediately, then again every minute.
-     */
-    private val nowMillisFlow: Flow<Long> = flow {
-        emit(System.currentTimeMillis())
-        while (true) {
-            delay(60_000)
-            emit(System.currentTimeMillis())
-        }
-    }
+    private val alarmScheduler = AlarmScheduler(application)
 
     /**
-     * UI state observed by the Compose screen.
+     * Full UI state used by the screen.
+     *
+     * The screen stays in Loading until the first DataStore value is received.
+     * Once preferences are available, the UI switches to Success.
      */
     val uiState: StateFlow<HomeScreenUiState> =
-        combine(repository.settings, nowMillisFlow) { settings, nowMillis ->
-            settings.toUiState(nowMillis)
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = HomeScreenUiState.Loading
-        )
+        repository.settings
+            .map { settings ->
+                settings.toUiState()
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = HomeScreenUiState.Loading
+            )
+
+    /**
+     * Dedicated flow for scheduling logic.
+     *
+     * Only values that matter for alarm planning are observed here.
+     * distinctUntilChanged prevents unnecessary re-scheduling when
+     * unrelated settings change, such as volume.
+     */
+    private val scheduleConfigFlow: Flow<AlarmScheduleConfig> =
+        repository.settings
+            .map { settings ->
+                AlarmScheduleConfig(
+                    enabled = settings.enabled,
+                    hour = settings.hour,
+                    minute = settings.minute,
+                    enabledDays = settings.enabledDays
+                )
+            }
+            .distinctUntilChanged()
 
     init {
+        observeAlarmScheduling()
+    }
+
+    /**
+     * Observe schedule-related changes and update the alarm planner only
+     * when necessary.
+     */
+    private fun observeAlarmScheduling() {
         viewModelScope.launch {
-            repository.settings
-                .distinctUntilChangedBySchedulingFields()
-                .collect { settings ->
-                    Log.d(
-                        TAG,
-                        "settings changed: enabled=${settings.enabled}, time=${settings.hour}:${settings.minute}, days=${settings.enabledDays}"
-                    )
+            scheduleConfigFlow.collect { config ->
+                Log.d(
+                    TAG,
+                    "schedule config changed: enabled=${config.enabled}, " +
+                            "time=${config.hour}:${config.minute}, " +
+                            "days=${config.enabledDays}"
+                )
 
-                    if (settings.enabled) {
-                        scheduler.scheduleNextFromSettings(settings)
-                    } else {
-                        scheduler.cancel()
-                    }
+                if (config.enabled) {
+                    alarmScheduler.scheduleNextAlarm(
+                        hour = config.hour,
+                        minute = config.minute,
+                        enabledDays = config.enabledDays
+                    )
+                } else {
+                    alarmScheduler.cancelAlarm()
                 }
+            }
         }
     }
 
     /**
-     * Converts repository settings into a UI state object.
-     */
-    private fun AlarmSettings.toUiState(nowMillis: Long): HomeScreenUiState.Success {
-        return HomeScreenUiState.Success(
-            enabled = enabled,
-            hour = hour,
-            minute = minute,
-            volume = volume,
-            streamUrl = NTS_STREAM_URL,
-            enabledDays = enabledDays,
-            progressiveVolume = progressiveVolume,
-            scheduledInText = buildScheduledInText(this, nowMillis)
-        )
-    }
-
-    /**
-     * Builds a user friendly string indicating how long before the next alarm triggers.
-     */
-    private fun buildScheduledInText(settings: AlarmSettings, nowMillis: Long): String {
-        if (!settings.enabled) return ""
-
-        val triggerAtMillis = scheduler.computeNextTriggerMillis(
-            hour = settings.hour,
-            minute = settings.minute,
-            enabledDays = settings.enabledDays
-        )
-
-        val deltaMillis = triggerAtMillis - nowMillis
-        if (deltaMillis <= 0L) return ""
-
-        val totalMinutes = deltaMillis / 60_000
-        if (totalMinutes <= 0L) return "This alarm is scheduled in less than 1 minute"
-
-        val hours = (totalMinutes / 60).toInt()
-        val minutes = (totalMinutes % 60).toInt()
-
-        return when {
-            hours > 0 && minutes > 0 ->
-                "This alarm is scheduled in ${hours} ${
-                    pluralize(
-                        hours,
-                        "hour"
-                    )
-                } and ${minutes} ${pluralize(minutes, "minute")}"
-
-            hours > 0 ->
-                "This alarm is scheduled in ${hours} ${pluralize(hours, "hour")}"
-
-            else ->
-                "This alarm is scheduled in ${minutes} ${pluralize(minutes, "minute")}"
-        }
-    }
-
-    /**
-     * Returns the pluralized form of a word.
-     */
-    private fun pluralize(value: Int, word: String): String {
-        return if (value == 1) word else "${word}s"
-    }
-
-    /**
-     * Toggles the alarm enabled state.
-     */
-    fun onEnabledChange() {
-        updateCurrentState { current ->
-            val nextEnabled = !current.enabled
-            Log.d(TAG, "onEnabledChange: $nextEnabled")
-            repository.setEnabled(nextEnabled)
-        }
-    }
-
-    /**
-     * Updates the alarm time.
+     * Update the selected alarm time.
      */
     fun onTimeChange(hour: Int, minute: Int) {
         Log.d(TAG, "onTimeChange: $hour:$minute")
+
         viewModelScope.launch {
             repository.setTime(hour, minute)
         }
     }
 
     /**
-     * Updates the alarm volume.
+     * Update the selected volume.
+     *
+     * This does not trigger re-scheduling because volume is not part
+     * of AlarmScheduleConfig.
      */
     fun onVolumeChange(volume: Int) {
-        val clamped = volume.coerceIn(0, 100)
-        Log.d(TAG, "onVolumeChange: $clamped")
         viewModelScope.launch {
-            repository.setVolume(clamped)
+            repository.setVolume(volume)
         }
     }
 
     /**
-     * Updates the volume using hardware key delta.
+     * Convert repository data into screen state.
      */
-    fun onHardwareVolumeKey(delta: Int) {
-        updateCurrentState { current ->
-            val next = (current.volume + delta).coerceIn(0, 100)
-            Log.d(TAG, "onHardwareVolumeKey: $delta")
-            repository.setVolume(next)
-        }
-    }
-
-    /**
-     * Toggles a selected day.
-     */
-    fun onToggleDay(day: DayOfWeekUi) {
-        updateCurrentState { current ->
-            val updated =
-                if (day in current.enabledDays) current.enabledDays - day
-                else current.enabledDays + day
-
-            Log.d(TAG, "onToggleDay: $updated")
-            repository.setEnabledDays(updated)
-        }
-    }
-
-    /**
-     * Enables or disables progressive volume.
-     */
-    fun onProgressiveVolumeEnabledChange(progressiveVolumeEnabled: Boolean) {
-        viewModelScope.launch {
-            repository.setProgressiveVolume(progressiveVolumeEnabled)
-        }
-    }
-
-    /**
-     * Helper that safely reads the current Success state before updating repository values.
-     */
-    private fun updateCurrentState(block: suspend (HomeScreenUiState.Success) -> Unit) {
-        val current = uiState.value as? HomeScreenUiState.Success ?: return
-        viewModelScope.launch {
-            block(current)
-        }
-    }
-}
-
-/**
- * Filters AlarmSettings emissions so scheduling only reacts when
- * scheduling related fields actually change.
- */
-private fun Flow<AlarmSettings>.distinctUntilChangedBySchedulingFields(): Flow<AlarmSettings> {
-    return distinctUntilChanged { old, new ->
-        old.enabled == new.enabled &&
-                old.hour == new.hour &&
-                old.minute == new.minute &&
-                old.enabledDays == new.enabledDays
+    private fun AlarmSettings.toUiState(): HomeScreenUiState.Success {
+        return HomeScreenUiState.Success(
+            enabled = enabled,
+            hour = hour,
+            minute = minute,
+            volume = volume,
+            enabledDays = enabledDays,
+            progressiveVolume = progressiveVolume,
+            streamUrl = NTS_STREAM_URL
+        )
     }
 }

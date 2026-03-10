@@ -7,7 +7,6 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.example.ntsalarmclock.RingingActivity
-import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import java.util.Calendar
 import java.util.Locale
@@ -26,24 +25,22 @@ class AlarmScheduler(private val context: Context) {
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
     /**
-     * Schedules the next alarm based on the current settings.
+     * Schedules the next alarm
      */
-    fun scheduleNextFromSettings(settings: AlarmSettings) {
+    fun scheduleNextAlarm(
+        hour: Int,
+        minute: Int,
+        enabledDays: Set<DayOfWeekUi>
+    ) {
         Log.d(
             TAG,
-            "scheduleNextFromSettings: enabled=${settings.enabled}, time=${settings.hour}:${settings.minute}, days=${settings.enabledDays}"
+            "scheduleNextAlarm: time=$hour:$minute, days=$enabledDays"
         )
 
-        // Cancel any existing alarm if the feature is disabled.
-        if (!settings.enabled) {
-            cancel()
-            return
-        }
-
         val triggerAtMillis = computeNextTriggerMillis(
-            hour = settings.hour,
-            minute = settings.minute,
-            enabledDays = settings.enabledDays
+            hour = hour,
+            minute = minute,
+            enabledDays = enabledDays
         )
 
         logNextAlarm(triggerAtMillis)
@@ -59,6 +56,13 @@ class AlarmScheduler(private val context: Context) {
     fun cancel() {
         Log.d(TAG, "cancel")
         alarmManager.cancel(alarmPendingIntent())
+    }
+
+    /**
+     * Alias kept for consistency with HomeScreenViewModel.
+     */
+    fun cancelAlarm() {
+        cancel()
     }
 
     /**

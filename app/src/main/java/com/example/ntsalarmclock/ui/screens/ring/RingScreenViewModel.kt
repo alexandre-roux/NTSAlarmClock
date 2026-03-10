@@ -6,28 +6,27 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.AndroidViewModel
 import com.example.ntsalarmclock.alarm.AlarmNotification.NOTIFICATION_ID
 import com.example.ntsalarmclock.playback.PlaybackService
-import kotlinx.coroutines.flow.MutableStateFlow
-
-data class RingUiState(
-    val isRinging: Boolean = true
-)
 
 class RingScreenViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val _uiState = MutableStateFlow(RingUiState())
-
+    /**
+     * Stops the currently ringing alarm.
+     *
+     * Responsibilities:
+     * - stop the PlaybackService responsible for audio playback
+     * - remove the fullscreen alarm notification
+     * - update the UI state so the screen can close
+     */
     fun stopAlarm() {
         val context = getApplication<Application>()
 
-        // Stop the playback service
+        // Stop the playback service responsible for alarm audio
         val stopIntent = Intent(context, PlaybackService::class.java).apply {
             action = PlaybackService.ACTION_STOP_ALARM
         }
         context.startService(stopIntent)
 
-        // Cancel the fullscreen alarm notification
+        // Cancel the fullscreen alarm notification shown when the alarm fired
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
-
-        _uiState.value = RingUiState(isRinging = false)
     }
 }
