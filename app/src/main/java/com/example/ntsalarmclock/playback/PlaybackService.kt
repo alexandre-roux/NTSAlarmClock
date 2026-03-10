@@ -44,6 +44,13 @@ private const val PROGRESSIVE_VOLUME_STEP_DELAY_MS = 500L
  */
 class PlaybackService : Service() {
 
+    companion object {
+        private const val TAG = "PlaybackService"
+
+        const val ACTION_START_ALARM = "com.example.ntsalarmclock.playback.action.START_ALARM"
+        const val ACTION_STOP_ALARM = "com.example.ntsalarmclock.playback.action.STOP_ALARM"
+    }
+
     // Player instance used to stream the alarm audio.
     private var player: ExoPlayer? = null
 
@@ -320,12 +327,5 @@ class PlaybackService : Service() {
         stopPlayback()
         serviceScope.cancel()
         super.onDestroy()
-    }
-
-    companion object {
-        private const val TAG = "PlaybackService"
-
-        const val ACTION_START_ALARM = "com.example.ntsalarmclock.playback.action.START_ALARM"
-        const val ACTION_STOP_ALARM = "com.example.ntsalarmclock.playback.action.STOP_ALARM"
     }
 }

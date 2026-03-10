@@ -46,7 +46,7 @@ class DataStoreAlarmSettingsRepository(
         /**
          * Default values used when no preference exists yet.
          */
-        const val DEFAULT_ENABLED = true
+        const val DEFAULT_ENABLED = false
         const val DEFAULT_HOUR = 7
         const val DEFAULT_MINUTE = 0
         const val DEFAULT_VOLUME = 70
