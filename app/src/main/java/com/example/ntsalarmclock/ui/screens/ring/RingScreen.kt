@@ -12,6 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+/**
+ * Screen displayed when the alarm is ringing.
+ *
+ * This composable shows a minimal UI with a message and a button
+ * allowing the user to stop the alarm. When the button is pressed:
+ * - the ViewModel stops the alarm playback
+ * - the screen is dismissed via [onDismiss]
+ */
 @Composable
 fun RingScreen(
     onDismiss: () -> Unit,

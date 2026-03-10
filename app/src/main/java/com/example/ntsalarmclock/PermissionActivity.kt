@@ -33,10 +33,24 @@ import androidx.core.content.ContextCompat
 import com.example.ntsalarmclock.ui.components.NTSButton
 import com.example.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 
+/**
+ * Activity responsible for requesting the notifications permission.
+ *
+ * On Android 13+ the POST_NOTIFICATIONS permission is required for
+ * alarm notifications and full screen intents to work properly.
+ *
+ * This activity is shown only if the permission has not yet been granted.
+ * Once granted, the user is redirected to MainActivity.
+ */
 class PermissionActivity : ComponentActivity() {
 
+    // Number of times the user denied the permission request
     private var deniedCount by mutableIntStateOf(0)
 
+    /**
+     * Launcher used to request the POST_NOTIFICATIONS permission.
+     * If granted we immediately continue to the main screen.
+     */
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
@@ -49,6 +63,7 @@ class PermissionActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // If permission is already granted, skip this screen entirely
         if (isNotificationsPermissionGranted()) {
             goToMainAndFinish()
             return
@@ -67,6 +82,12 @@ class PermissionActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Compose UI explaining why the notification permission is required.
+     *
+     * If the user denied the permission twice, the system dialog will no
+     * longer appear, so we redirect the user to the app settings instead.
+     */
     @Composable
     fun PermissionScreen(
         deniedCount: Int,
@@ -97,12 +118,15 @@ class PermissionActivity : ComponentActivity() {
             Spacer(modifier = Modifier.height(36.dp))
 
             if (deniedCount >= 2) {
+                // After multiple denials the permission dialog may stop appearing,
+                // so we direct the user to the app settings screen.
                 NTSButton(
                     text = stringResource(R.string.open_settings),
                     textStyle = MaterialTheme.typography.headlineMedium,
                     onClick = onOpenSettingsClick
                 )
             } else {
+                // Show the standard permission request button
                 NTSButton(
                     text = stringResource(R.string.allow_notifications),
                     textStyle = MaterialTheme.typography.headlineMedium,
@@ -112,6 +136,9 @@ class PermissionActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Preview used by Android Studio to visualize the permission screen.
+     */
     @Preview(showBackground = true)
     @Composable
     private fun PermissionScreenPreview() {
@@ -126,6 +153,10 @@ class PermissionActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * When returning from the system settings screen we re-check the permission
+     * and continue to MainActivity if it has been granted.
+     */
     override fun onResume() {
         super.onResume()
 
@@ -134,6 +165,10 @@ class PermissionActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Requests the notification permission on Android 13+.
+     * On older versions this permission does not exist.
+     */
     private fun requestNotificationsPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -142,6 +177,10 @@ class PermissionActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Returns true if the POST_NOTIFICATIONS permission is granted
+     * or if the Android version does not require it.
+     */
     private fun isNotificationsPermissionGranted(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
 
@@ -151,6 +190,10 @@ class PermissionActivity : ComponentActivity() {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    /**
+     * Opens the system screen where the user can manually enable
+     * the notification permission for this application.
+     */
     private fun openAppSettings() {
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.fromParts("package", packageName, null)
@@ -158,6 +201,10 @@ class PermissionActivity : ComponentActivity() {
         startActivity(intent)
     }
 
+    /**
+     * Navigates to the main screen and removes this activity
+     * from the back stack.
+     */
     private fun goToMainAndFinish() {
         startActivity(Intent(this, MainActivity::class.java))
         finish()
