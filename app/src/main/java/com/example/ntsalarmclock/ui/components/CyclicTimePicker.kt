@@ -31,9 +31,15 @@ fun CyclicTimePicker(
     minute: Int,
     onTimeChange: (Int, Int) -> Unit
 ) {
+    // Create large cyclic lists so the wheel appears infinite
     val hours = remember { List(24 * 400) { it % 24 } }
     val minutes = remember { List(60 * 400) { it % 60 } }
 
+    // Cache the displayed strings to avoid recreating large lists on every recomposition
+    val hourTexts = remember { hours.map { it.toString().padStart(2, '0') } }
+    val minuteTexts = remember { minutes.map { it.toString().padStart(2, '0') } }
+
+    // Compute a base index near the middle to allow scrolling in both directions
     val baseHoursIndex = (hours.size / 2) - ((hours.size / 2) % 24)
     val baseMinutesIndex = (minutes.size / 2) - ((minutes.size / 2) % 60)
 
@@ -44,41 +50,38 @@ fun CyclicTimePicker(
     val rowCount = 3
     val centerRowHeight = pickerSize.height / rowCount
 
-    // What the UI currently displays
+    // Current values displayed by the UI
     var selectedHour by remember { mutableIntStateOf(hour) }
     var selectedMinute by remember { mutableIntStateOf(minute) }
 
-    // Last value that we actually persisted (prevents duplicates)
+    // Last values sent to the outside world to prevent duplicate updates
     var lastCommittedHour by remember { mutableIntStateOf(hour) }
     var lastCommittedMinute by remember { mutableIntStateOf(minute) }
 
-    // Ignore the first callback after (re)initialization / programmatic sync
-    var ignoreNextHourCallback by remember { mutableStateOf(true) }
-    var ignoreNextMinuteCallback by remember { mutableStateOf(true) }
+    // Ignore the first callback emitted by the picker after initialization
+    var ignoreHourCallback by remember { mutableStateOf(true) }
+    var ignoreMinuteCallback by remember { mutableStateOf(true) }
 
-    // Whenever the persisted value changes (DataStore), update what we display
-    // and ignore the next callback that the picker library may emit.
+    // Synchronize the local UI state when the external hour changes
     LaunchedEffect(hour) {
         selectedHour = hour
         lastCommittedHour = hour
-        ignoreNextHourCallback = true
+        ignoreHourCallback = true
     }
 
+    // Synchronize the local UI state when the external minute changes
     LaunchedEffect(minute) {
         selectedMinute = minute
         lastCommittedMinute = minute
-        ignoreNextMinuteCallback = true
+        ignoreMinuteCallback = true
     }
 
     Box {
         Row(verticalAlignment = Alignment.CenterVertically) {
-
-            // Key forces the picker to re-create when the startIndex changes,
-            // ensuring it visually snaps to the persisted hour.
             key(startHourIndex) {
                 WheelTextPicker(
                     size = pickerSize,
-                    texts = hours.map { it.toString().padStart(2, '0') },
+                    texts = hourTexts,
                     style = MaterialTheme.typography.headlineMedium,
                     rowCount = rowCount,
                     startIndex = startHourIndex,
@@ -87,11 +90,12 @@ fun CyclicTimePicker(
                     val newHour = hours[snappedIndex]
                     selectedHour = newHour
 
-                    if (ignoreNextHourCallback) {
-                        ignoreNextHourCallback = false
+                    if (ignoreHourCallback) {
+                        ignoreHourCallback = false
                         return@WheelTextPicker null
                     }
 
+                    // Emit an update only if the effective time really changed
                     if (newHour != lastCommittedHour || selectedMinute != lastCommittedMinute) {
                         lastCommittedHour = newHour
                         lastCommittedMinute = selectedMinute
@@ -116,11 +120,10 @@ fun CyclicTimePicker(
                 )
             }
 
-            // Same idea for minutes
             key(startMinuteIndex) {
                 WheelTextPicker(
                     size = pickerSize,
-                    texts = minutes.map { it.toString().padStart(2, '0') },
+                    texts = minuteTexts,
                     style = MaterialTheme.typography.headlineMedium,
                     rowCount = rowCount,
                     startIndex = startMinuteIndex,
@@ -129,8 +132,8 @@ fun CyclicTimePicker(
                     val newMinute = minutes[snappedIndex]
                     selectedMinute = newMinute
 
-                    if (ignoreNextMinuteCallback) {
-                        ignoreNextMinuteCallback = false
+                    if (ignoreMinuteCallback) {
+                        ignoreMinuteCallback = false
                         return@WheelTextPicker null
                     }
 
@@ -145,6 +148,7 @@ fun CyclicTimePicker(
             }
         }
 
+        // Overlay showing the selected row in the middle of the picker
         Box(
             modifier = Modifier
                 .zIndex(1f)
