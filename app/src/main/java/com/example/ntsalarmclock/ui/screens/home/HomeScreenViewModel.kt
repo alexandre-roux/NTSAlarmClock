@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ntsalarmclock.alarm.AlarmScheduler
+import com.example.ntsalarmclock.alarm.NextAlarmCalculator
 import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.data.AlarmSettingsRepository
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
@@ -34,7 +35,8 @@ sealed interface HomeScreenUiState {
         val volume: Int,
         val enabledDays: Set<DayOfWeekUi>,
         val progressiveVolume: Boolean,
-        val streamUrl: String
+        val streamUrl: String,
+        val scheduledInText: String
     ) : HomeScreenUiState
 }
 
@@ -69,9 +71,7 @@ class HomeScreenViewModel(
      */
     val uiState: StateFlow<HomeScreenUiState> =
         repository.settings
-            .map { settings ->
-                settings.toUiState()
-            }
+            .map { settings -> settings.toUiState() }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
@@ -133,9 +133,36 @@ class HomeScreenViewModel(
      */
     fun onTimeChange(hour: Int, minute: Int) {
         Log.d(TAG, "onTimeChange: $hour:$minute")
+        updateSettings { repository.setTime(hour, minute) }
+    }
 
-        viewModelScope.launch {
-            repository.setTime(hour, minute)
+    /**
+     * Toggle the alarm enabled state.
+     */
+    fun onEnabledChange() {
+        withSuccessState { state ->
+            updateSettings {
+                repository.setEnabled(!state.enabled)
+            }
+        }
+    }
+
+    /**
+     * Toggle a day in the selected recurring days set.
+     */
+    fun onToggleDay(day: DayOfWeekUi) {
+        withSuccessState { state ->
+            val updatedDays = state.enabledDays.toMutableSet().apply {
+                if (contains(day)) {
+                    remove(day)
+                } else {
+                    add(day)
+                }
+            }
+
+            updateSettings {
+                repository.setEnabledDays(updatedDays)
+            }
         }
     }
 
@@ -146,8 +173,53 @@ class HomeScreenViewModel(
      * of AlarmScheduleConfig.
      */
     fun onVolumeChange(volume: Int) {
+        updateSettings {
+            repository.setVolume(volume.coerceIn(0, 100))
+        }
+    }
+
+    /**
+     * Apply a relative volume change when the user presses a hardware
+     * volume key inside the activity.
+     */
+    fun onHardwareVolumeKey(delta: Int) {
+        withSuccessState { state ->
+            val updatedVolume = (state.volume + delta).coerceIn(0, 100)
+
+            updateSettings {
+                repository.setVolume(updatedVolume)
+            }
+        }
+    }
+
+    /**
+     * Update the progressive volume preference.
+     *
+     * This does not trigger re-scheduling because it does not change
+     * when the next alarm should ring.
+     */
+    fun onProgressiveVolumeEnabledChange(enabled: Boolean) {
+        updateSettings {
+            repository.setProgressiveVolume(enabled)
+        }
+    }
+
+    /**
+     * Run a block only when the current UI state is Success.
+     *
+     * This avoids repeating the same cast-and-return pattern in every action.
+     */
+    private inline fun withSuccessState(block: (HomeScreenUiState.Success) -> Unit) {
+        val state = uiState.value as? HomeScreenUiState.Success ?: return
+        block(state)
+    }
+
+    /**
+     * Launch a repository update from the ViewModel scope.
+     */
+    private fun updateSettings(block: suspend () -> Unit) {
         viewModelScope.launch {
-            repository.setVolume(volume)
+            block()
         }
     }
 
@@ -162,7 +234,13 @@ class HomeScreenViewModel(
             volume = volume,
             enabledDays = enabledDays,
             progressiveVolume = progressiveVolume,
-            streamUrl = NTS_STREAM_URL
+            streamUrl = NTS_STREAM_URL,
+            scheduledInText = NextAlarmCalculator.buildScheduledInText(
+                enabled = enabled,
+                hour = hour,
+                minute = minute,
+                enabledDays = enabledDays
+            )
         )
     }
 }

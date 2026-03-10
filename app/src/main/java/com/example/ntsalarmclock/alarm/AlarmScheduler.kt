@@ -8,24 +8,26 @@ import android.os.Build
 import android.util.Log
 import com.example.ntsalarmclock.RingingActivity
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
+import java.text.DateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 /**
  * Responsible for scheduling and cancelling alarms using AlarmManager.
  *
  * Behavior:
- * - If no day is selected, the alarm is treated as a one shot alarm
+ * - If no day is selected, the alarm is treated as a one-shot alarm
  * - If one or more days are selected, the alarm is treated as recurring
  */
 class AlarmScheduler(private val context: Context) {
 
-    private val TAG = "AlarmScheduler"
+    private val tag = "AlarmScheduler"
 
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
     /**
-     * Schedules the next alarm
+     * Schedule the next alarm occurrence.
      */
     fun scheduleNextAlarm(
         hour: Int,
@@ -33,28 +35,31 @@ class AlarmScheduler(private val context: Context) {
         enabledDays: Set<DayOfWeekUi>
     ) {
         Log.d(
-            TAG,
+            tag,
             "scheduleNextAlarm: time=$hour:$minute, days=$enabledDays"
         )
 
-        val triggerAtMillis = computeNextTriggerMillis(
+        val triggerAtMillis = NextAlarmCalculator.computeNextTriggerMillis(
             hour = hour,
             minute = minute,
             enabledDays = enabledDays
-        )
+        ) ?: return
 
         logNextAlarm(triggerAtMillis)
 
         // Replace any previously scheduled alarm with the new one.
         cancel()
         scheduleAt(triggerAtMillis)
+
+        // Log what the system reports as the next visible alarm clock.
+        logSystemNextAlarmClock()
     }
 
     /**
-     * Cancels the currently scheduled alarm, if any.
+     * Cancel the currently scheduled alarm, if any.
      */
     fun cancel() {
-        Log.d(TAG, "cancel")
+        Log.d(tag, "cancel")
 
         val pendingIntent = alarmPendingIntent()
 
@@ -63,6 +68,8 @@ class AlarmScheduler(private val context: Context) {
         // Explicitly cancel the PendingIntent to avoid stale instances
         // being reused on some devices.
         pendingIntent.cancel()
+
+        logSystemNextAlarmClock()
     }
 
     /**
@@ -73,24 +80,30 @@ class AlarmScheduler(private val context: Context) {
     }
 
     /**
-     * Schedules an alarm at the given timestamp.
+     * Schedule an alarm at the given timestamp.
      *
-     * On modern Android versions, setAlarmClock() is preferred for alarm apps
-     * because the system treats it as a real user facing alarm.
-     *
-     * If exact alarms are not allowed, the code falls back to inexact scheduling.
+     * Scheduling strategy:
+     * - Prefer setAlarmClock() for real alarm clock behavior
+     * - If exact alarms are restricted, fall back to inexact scheduling
+     * - If setAlarmClock() fails, try setExactAndAllowWhileIdle() before
+     *   using a final inexact fallback
      */
     private fun scheduleAt(triggerAtMillis: Long) {
         val pendingIntent = alarmPendingIntent()
 
         // On Android 12+, exact alarms may be restricted by system policy or user settings.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            Log.w(TAG, "Exact alarms are not allowed, falling back to inexact scheduling")
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !alarmManager.canScheduleExactAlarms()
+        ) {
+            Log.w(tag, "Exact alarms are not allowed, falling back to inexact scheduling")
+
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 triggerAtMillis,
                 pendingIntent
             )
+
             return
         }
 
@@ -114,21 +127,44 @@ class AlarmScheduler(private val context: Context) {
                 pendingIntent
             )
 
-            Log.d(TAG, "Alarm scheduled with setAlarmClock()")
+            Log.d(tag, "Alarm scheduled with setAlarmClock()")
         } catch (_: SecurityException) {
-            // Final fallback if exact scheduling is rejected.
+            scheduleExactFallback(triggerAtMillis, pendingIntent)
+        }
+    }
+
+    /**
+     * Try an exact fallback when setAlarmClock() cannot be used.
+     *
+     * This is useful on some recent Android versions and OEM implementations
+     * where exact scheduling is still possible even if setAlarmClock() fails.
+     */
+    private fun scheduleExactFallback(
+        triggerAtMillis: Long,
+        pendingIntent: PendingIntent
+    ) {
+        try {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pendingIntent
+            )
+
+            Log.w(tag, "Alarm scheduled with exact fallback")
+        } catch (_: SecurityException) {
+            // Final fallback if exact scheduling is still rejected.
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 triggerAtMillis,
                 pendingIntent
             )
 
-            Log.w(TAG, "SecurityException while scheduling exact alarm, used set() fallback")
+            Log.w(tag, "Exact fallback rejected, used inexact set() fallback")
         }
     }
 
     /**
-     * Creates the PendingIntent that triggers AlarmReceiver.
+     * Create the PendingIntent that triggers AlarmReceiver.
      */
     private fun alarmPendingIntent(): PendingIntent {
         return PendingIntent.getBroadcast(
@@ -140,78 +176,7 @@ class AlarmScheduler(private val context: Context) {
     }
 
     /**
-     * Computes the next alarm timestamp from the selected time and days.
-     *
-     * Rules:
-     * - If no day is selected, schedule a one shot alarm at the next future occurrence
-     *   of the selected time
-     * - If days are selected, schedule the next matching day and time
-     */
-    fun computeNextTriggerMillis(
-        hour: Int,
-        minute: Int,
-        enabledDays: Set<DayOfWeekUi>
-    ): Long {
-        val now = Calendar.getInstance()
-
-        // No selected day means a one shot alarm.
-        if (enabledDays.isEmpty()) {
-            val candidate = Calendar.getInstance().apply {
-                timeInMillis = now.timeInMillis
-                set(Calendar.HOUR_OF_DAY, hour)
-                set(Calendar.MINUTE, minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-
-            // If the selected time has already passed today,
-            // schedule the alarm for tomorrow.
-            if (candidate.timeInMillis <= now.timeInMillis) {
-                candidate.add(Calendar.DAY_OF_YEAR, 1)
-            }
-
-            return candidate.timeInMillis
-        }
-
-        val effectiveDays = enabledDays.map { it.toCalendarDayOfWeek() }.toSet()
-
-        // Search the next valid occurrence across the next 7 days.
-        for (offset in 0..6) {
-            val candidate = Calendar.getInstance().apply {
-                timeInMillis = now.timeInMillis
-                add(Calendar.DAY_OF_YEAR, offset)
-                set(Calendar.HOUR_OF_DAY, hour)
-                set(Calendar.MINUTE, minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-
-            val candidateDay = candidate.get(Calendar.DAY_OF_WEEK)
-
-            if (!effectiveDays.contains(candidateDay)) {
-                continue
-            }
-
-            if (candidate.timeInMillis > now.timeInMillis) {
-                return candidate.timeInMillis
-            }
-        }
-
-        // Safety fallback. This should rarely be reached.
-        val fallback = Calendar.getInstance().apply {
-            timeInMillis = now.timeInMillis
-            add(Calendar.DAY_OF_YEAR, 1)
-            set(Calendar.HOUR_OF_DAY, hour)
-            set(Calendar.MINUTE, minute)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-
-        return fallback.timeInMillis
-    }
-
-    /**
-     * Logs the next scheduled alarm in a readable format.
+     * Log the next scheduled alarm in a readable format.
      */
     private fun logNextAlarm(triggerAtMillis: Long) {
         val calendar = Calendar.getInstance().apply {
@@ -227,11 +192,37 @@ class AlarmScheduler(private val context: Context) {
                     twoDigits(calendar.get(Calendar.HOUR_OF_DAY)) + ":" +
                     twoDigits(calendar.get(Calendar.MINUTE))
 
-        Log.d(TAG, "Next alarm scheduled for: $dayLabel, $dateLabel (millis=$triggerAtMillis)")
+        Log.d(tag, "Next alarm scheduled for: $dayLabel, $dateLabel (millis=$triggerAtMillis)")
     }
 
     /**
-     * Converts a Calendar day constant into a readable English label.
+     * Log the next alarm clock reported by the Android system.
+     *
+     * This is very useful when debugging because it confirms what the OS
+     * currently exposes as the next upcoming alarm clock.
+     */
+    fun logSystemNextAlarmClock() {
+        val nextAlarmClock = alarmManager.nextAlarmClock
+
+        if (nextAlarmClock == null) {
+            Log.d(tag, "System nextAlarmClock: none")
+            return
+        }
+
+        val formattedTime = DateFormat.getDateTimeInstance(
+            DateFormat.MEDIUM,
+            DateFormat.SHORT,
+            Locale.getDefault()
+        ).format(Date(nextAlarmClock.triggerTime))
+
+        Log.d(
+            tag,
+            "System nextAlarmClock: triggerTime=${nextAlarmClock.triggerTime}, formatted=$formattedTime"
+        )
+    }
+
+    /**
+     * Convert a Calendar day constant into a readable English label.
      */
     private fun dayOfWeekLabel(dayOfWeek: Int): String {
         return when (dayOfWeek) {
@@ -247,29 +238,14 @@ class AlarmScheduler(private val context: Context) {
     }
 
     /**
-     * Formats an integer as a two digit string.
+     * Format an integer as a two-digit string.
      */
     private fun twoDigits(value: Int): String {
         return String.format(Locale.US, "%02d", value)
     }
 
     /**
-     * Converts the UI enum into Calendar day constants.
-     */
-    private fun DayOfWeekUi.toCalendarDayOfWeek(): Int {
-        return when (this) {
-            DayOfWeekUi.MO -> Calendar.MONDAY
-            DayOfWeekUi.TU -> Calendar.TUESDAY
-            DayOfWeekUi.WE -> Calendar.WEDNESDAY
-            DayOfWeekUi.TH -> Calendar.THURSDAY
-            DayOfWeekUi.FR -> Calendar.FRIDAY
-            DayOfWeekUi.SA -> Calendar.SATURDAY
-            DayOfWeekUi.SU -> Calendar.SUNDAY
-        }
-    }
-
-    /**
-     * Returns the flags used for all PendingIntents created by this scheduler.
+     * Return the flags used for all PendingIntents created by this scheduler.
      */
     private fun pendingIntentFlags(): Int {
         return PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
