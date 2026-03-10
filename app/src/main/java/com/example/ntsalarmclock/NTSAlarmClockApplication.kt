@@ -1,18 +1,14 @@
 package com.example.ntsalarmclock
 
 import android.app.Application
-import com.example.ntsalarmclock.alarm.AlarmScheduler
-import com.example.ntsalarmclock.data.AlarmSettingsRepository
-import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
-import com.example.ntsalarmclock.data.alarmSettingsDataStore
+import com.example.ntsalarmclock.alarm.AlarmNotification
 
 class NTSAlarmClockApplication : Application() {
 
-    val repository: AlarmSettingsRepository by lazy {
-        DataStoreAlarmSettingsRepository(alarmSettingsDataStore)
-    }
+    override fun onCreate() {
+        super.onCreate()
 
-    val alarmScheduler: AlarmScheduler by lazy {
-        AlarmScheduler(applicationContext)
+        // Ensure the alarm notification channel exists before any alarm fires
+        AlarmNotification.createNotificationChannel(this)
     }
 }

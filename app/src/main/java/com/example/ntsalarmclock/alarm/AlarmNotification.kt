@@ -1,5 +1,8 @@
 package com.example.ntsalarmclock.alarm
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -20,6 +23,32 @@ object AlarmNotification {
     // Request codes used for the PendingIntents
     const val REQUEST_CODE_FULLSCREEN = 2001
     const val REQUEST_CODE_STOP = 2002
+
+    /**
+     * Creates the notification channel used for alarms.
+     *
+     * On Android 8+ notifications must be posted to a channel.
+     * This method is safe to call multiple times because the system
+     * ignores the call if the channel already exists.
+     */
+    fun createNotificationChannel(context: Context) {
+
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            CHANNEL_NAME,
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notifications used when the alarm is ringing"
+
+            // Make the notification visible on the lock screen
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        notificationManager.createNotificationChannel(channel)
+    }
 
     /**
      * Builds the notification shown when the alarm is ringing.

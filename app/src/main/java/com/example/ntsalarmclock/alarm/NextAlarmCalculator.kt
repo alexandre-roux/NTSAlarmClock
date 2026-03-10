@@ -116,7 +116,7 @@ object NextAlarmCalculator {
                 "This alarm is scheduled in $minutes minutes"
 
             else ->
-                "This alarm is scheduled now"
+                "This alarm is scheduled in less than a minute"
         }
     }
 
