@@ -6,7 +6,7 @@
     <string name="cancel_alarm">CANCEL ALARM</string>
     <string name="set_alarm">SET ALARM</string>
     <string name="progressive_volume">PROGRESSIVE VOLUME</string>
-    <string name="progressive_volume_description">The alarm starts softly one minute early and fades to the set volume</string>
+    <string name="progressive_volume_description">The alarm starts softly and fades to the set volume</string>
     <string name="alarm_scheduled_in">The alarm starts softly one minute early and fades to the set volume</string>
     <string name="notifications_permission_required">NOTIFICATIONS PERMISSION REQUIRED</string>
     <string name="this_app_needs_notification_permission_to_work">This app needs notification permission to be able to run the alarm</string>
