@@ -25,8 +25,8 @@ import kotlinx.coroutines.withContext
 class AlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
-        val tag = "AlarmReceiver"
-        Log.d(tag, "onReceive")
+        val TAG = "AlarmReceiver"
+        Log.d(TAG, "onReceive")
 
         val pendingResult = goAsync()
 
@@ -48,7 +48,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 val settings = repository.settings.first()
 
                 Log.d(
-                    tag,
+                    TAG,
                     "Alarm fired with settings: enabled=${settings.enabled}, " +
                             "time=${settings.hour}:${settings.minute}, " +
                             "days=${settings.enabledDays}, " +
@@ -77,7 +77,7 @@ class AlarmReceiver : BroadcastReceiver() {
                  * again after it has already fired.
                  */
                 if (settings.enabled && settings.enabledDays.isNotEmpty()) {
-                    Log.d(tag, "Recurring alarm detected, scheduling the next occurrence")
+                    Log.d(TAG, "Recurring alarm detected, scheduling the next occurrence")
 
                     AlarmScheduler(context).scheduleNextAlarm(
                         hour = settings.hour,
@@ -86,12 +86,12 @@ class AlarmReceiver : BroadcastReceiver() {
                     )
                 } else {
                     Log.d(
-                        tag,
+                        TAG,
                         "No re-schedule needed: enabled=${settings.enabled}, days=${settings.enabledDays}"
                     )
                 }
             } catch (t: Throwable) {
-                Log.e(tag, "AlarmReceiver failed", t)
+                Log.e(TAG, "AlarmReceiver failed", t)
             } finally {
                 if (wakeLock.isHeld) {
                     wakeLock.release()

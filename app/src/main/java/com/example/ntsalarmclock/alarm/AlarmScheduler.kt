@@ -22,7 +22,7 @@ import java.util.Locale
  */
 class AlarmScheduler(private val context: Context) {
 
-    private val tag = "AlarmScheduler"
+    private val TAG = "AlarmScheduler"
 
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
@@ -35,7 +35,7 @@ class AlarmScheduler(private val context: Context) {
         enabledDays: Set<DayOfWeekUi>
     ) {
         Log.d(
-            tag,
+            TAG,
             "scheduleNextAlarm: time=$hour:$minute, days=$enabledDays"
         )
 
@@ -59,7 +59,7 @@ class AlarmScheduler(private val context: Context) {
      * Cancel the currently scheduled alarm, if any.
      */
     fun cancel() {
-        Log.d(tag, "cancel")
+        Log.d(TAG, "cancel")
 
         val pendingIntent = alarmPendingIntent()
 
@@ -96,7 +96,7 @@ class AlarmScheduler(private val context: Context) {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             !alarmManager.canScheduleExactAlarms()
         ) {
-            Log.w(tag, "Exact alarms are not allowed, falling back to inexact scheduling")
+            Log.w(TAG, "Exact alarms are not allowed, falling back to inexact scheduling")
 
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
@@ -127,7 +127,7 @@ class AlarmScheduler(private val context: Context) {
                 pendingIntent
             )
 
-            Log.d(tag, "Alarm scheduled with setAlarmClock()")
+            Log.d(TAG, "Alarm scheduled with setAlarmClock()")
         } catch (_: SecurityException) {
             scheduleExactFallback(triggerAtMillis, pendingIntent)
         }
@@ -150,7 +150,7 @@ class AlarmScheduler(private val context: Context) {
                 pendingIntent
             )
 
-            Log.w(tag, "Alarm scheduled with exact fallback")
+            Log.w(TAG, "Alarm scheduled with exact fallback")
         } catch (_: SecurityException) {
             // Final fallback if exact scheduling is still rejected.
             alarmManager.set(
@@ -159,7 +159,7 @@ class AlarmScheduler(private val context: Context) {
                 pendingIntent
             )
 
-            Log.w(tag, "Exact fallback rejected, used inexact set() fallback")
+            Log.w(TAG, "Exact fallback rejected, used inexact set() fallback")
         }
     }
 
@@ -192,7 +192,7 @@ class AlarmScheduler(private val context: Context) {
                     twoDigits(calendar.get(Calendar.HOUR_OF_DAY)) + ":" +
                     twoDigits(calendar.get(Calendar.MINUTE))
 
-        Log.d(tag, "Next alarm scheduled for: $dayLabel, $dateLabel (millis=$triggerAtMillis)")
+        Log.d(TAG, "Next alarm scheduled for: $dayLabel, $dateLabel (millis=$triggerAtMillis)")
     }
 
     /**
@@ -205,7 +205,7 @@ class AlarmScheduler(private val context: Context) {
         val nextAlarmClock = alarmManager.nextAlarmClock
 
         if (nextAlarmClock == null) {
-            Log.d(tag, "System nextAlarmClock: none")
+            Log.d(TAG, "System nextAlarmClock: none")
             return
         }
 
@@ -216,7 +216,7 @@ class AlarmScheduler(private val context: Context) {
         ).format(Date(nextAlarmClock.triggerTime))
 
         Log.d(
-            tag,
+            TAG,
             "System nextAlarmClock: triggerTime=${nextAlarmClock.triggerTime}, formatted=$formattedTime"
         )
     }
