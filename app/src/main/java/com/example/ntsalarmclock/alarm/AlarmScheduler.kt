@@ -55,7 +55,14 @@ class AlarmScheduler(private val context: Context) {
      */
     fun cancel() {
         Log.d(TAG, "cancel")
-        alarmManager.cancel(alarmPendingIntent())
+
+        val pendingIntent = alarmPendingIntent()
+
+        alarmManager.cancel(pendingIntent)
+
+        // Explicitly cancel the PendingIntent to avoid stale instances
+        // being reused on some devices.
+        pendingIntent.cancel()
     }
 
     /**
