@@ -61,7 +61,7 @@ fun HomeScreenContent(
         )
 
         HomeProgressiveVolumeSection(
-            state = state,
+            progressiveVolume = state.progressiveVolume,
             onProgressiveVolumeEnabledChange = onProgressiveVolumeEnabledChange
         )
 

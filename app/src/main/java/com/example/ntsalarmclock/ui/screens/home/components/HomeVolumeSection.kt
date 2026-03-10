@@ -26,6 +26,21 @@ import dev.vivvvek.seeker.Seeker
 import dev.vivvvek.seeker.SeekerDefaults
 import kotlin.math.roundToInt
 
+/**
+ * Section of the Home screen that controls the playback preview volume.
+ *
+ * It provides:
+ * - a play/pause button to start or stop the NTS stream preview
+ * - a slider allowing the user to adjust the alarm volume (0-100)
+ *
+ * The slider internally uses a Float because the Seeker component requires it,
+ * while the application state uses an Int percentage. The local UI state
+ * (volumeUi) acts as an adapter between both representations.
+ *
+ * Live changes update the playback volume immediately, while
+ * [onVolumeChangeFinished] is triggered when the user finishes dragging
+ * to persist the new volume value.
+ */
 @Composable
 fun HomeVolumeSection(
     isPlaying: Boolean,

@@ -5,6 +5,15 @@ import androidx.compose.ui.res.stringResource
 import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.ui.components.NTSButton
 
+/**
+ * Button displayed on the Home screen to enable or cancel the alarm.
+ *
+ * The label changes depending on the current alarm state:
+ * - "Set alarm" when the alarm is disabled
+ * - "Cancel alarm" when the alarm is enabled
+ *
+ * The click action is delegated to the ViewModel through [onClick].
+ */
 @Composable
 fun HomeEnableAlarmButton(
     isAlarmEnabled: Boolean,

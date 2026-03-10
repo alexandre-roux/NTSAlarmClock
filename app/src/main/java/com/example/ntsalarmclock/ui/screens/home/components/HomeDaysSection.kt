@@ -10,6 +10,13 @@ import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import com.example.ntsalarmclock.ui.components.DaysOfWeekRow
 
+/**
+ * Section of the Home screen that lets the user choose
+ * on which days the alarm should repeat.
+ *
+ * Displays a title ("Days") and a row of selectable day buttons.
+ * The selection state is controlled by the ViewModel via [selectedDays].
+ */
 @Composable
 fun HomeDaysSection(
     selectedDays: Set<DayOfWeekUi>,

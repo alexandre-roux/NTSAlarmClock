@@ -9,11 +9,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.ntsalarmclock.R
-import com.example.ntsalarmclock.ui.screens.home.HomeScreenUiState
 
+/**
+ * Section of the Home screen that allows the user to enable or disable
+ * the progressive volume feature of the alarm.
+ *
+ * When enabled, the alarm volume gradually increases instead of
+ * starting immediately at the configured volume level.
+ *
+ * The selection state is controlled by the ViewModel via [progressiveVolume].
+ */
 @Composable
 fun HomeProgressiveVolumeSection(
-    state: HomeScreenUiState.Success,
+    progressiveVolume: Boolean,
     onProgressiveVolumeEnabledChange: (Boolean) -> Unit
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -28,7 +36,7 @@ fun HomeProgressiveVolumeSection(
             textAlign = TextAlign.Center,
         )
         Switch(
-            checked = state.progressiveVolume,
+            checked = progressiveVolume,
             onCheckedChange = {
                 onProgressiveVolumeEnabledChange(it)
             }
