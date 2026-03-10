@@ -14,6 +14,18 @@ import androidx.compose.ui.unit.dp
 import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.ui.components.CyclicTimePicker
 
+/**
+ * Section of the Home screen responsible for configuring the alarm time.
+ *
+ * It displays:
+ * - a title ("Time")
+ * - a cyclic time picker allowing the user to select hour and minute
+ * - an optional informational text indicating when the alarm will trigger
+ *   (for example "Alarm scheduled in 7h 32m").
+ *
+ * The selected time is controlled by the ViewModel and propagated
+ * through the [hour], [minute], and [onTimeChange] parameters.
+ */
 @Composable
 fun HomeTimeSection(
     hour: Int,
