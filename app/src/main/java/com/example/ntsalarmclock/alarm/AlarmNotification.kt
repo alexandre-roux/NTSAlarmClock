@@ -14,7 +14,7 @@ import com.example.ntsalarmclock.playback.PlaybackService
 object AlarmNotification {
 
     // Notification channel used for alarm notifications
-    const val CHANNEL_ID = "alarm_channel"
+    const val CHANNEL_ID = "alarm_channel_v2"
     const val CHANNEL_NAME = "Alarm"
 
     // Notification id used when posting the alarm notification
@@ -42,6 +42,10 @@ object AlarmNotification {
 
             // Make the notification visible on the lock screen
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+
+            // Disable vibration and notification sound so only the alarm player is heard
+            enableVibration(false)
+            setSound(null, null)
         }
 
         val notificationManager =
@@ -104,32 +108,14 @@ object AlarmNotification {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText("Alarm ringing")
-
-            // Mark this notification as an alarm for system UI behavior
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-
-            // Highest priority so it appears immediately
             .setPriority(NotificationCompat.PRIORITY_MAX)
-
-            // Visible on the lock screen
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-
-            // Keep the notification active while the alarm is ringing
             .setOngoing(true)
-
-            // Prevent accidental swipe dismissal
             .setAutoCancel(false)
-
-            // Ensure the notification cannot be dismissed by swipe
             .setOnlyAlertOnce(true)
-
-            // Tap behavior
             .setContentIntent(fullScreenPendingIntent)
-
-            // Full screen alarm UI
             .setFullScreenIntent(fullScreenPendingIntent, true)
-
-            // Stop alarm action
             .addAction(R.drawable.ic_launcher_foreground, "Stop", stopPendingIntent)
     }
 }

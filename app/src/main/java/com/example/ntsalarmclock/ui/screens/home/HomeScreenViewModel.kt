@@ -10,6 +10,7 @@ import com.example.ntsalarmclock.data.AlarmSettings
 import com.example.ntsalarmclock.data.AlarmSettingsRepository
 import com.example.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.example.ntsalarmclock.data.alarmSettingsDataStore
+import com.example.ntsalarmclock.playback.NTS_STREAM_URL
 import com.example.ntsalarmclock.ui.components.DayOfWeekUi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,7 +21,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 private const val TAG = "HomeScreenViewModel"
-private const val NTS_STREAM_URL = "https://stream-relay-geo.ntslive.net/stream"
 
 /**
  * UI state exposed to the Home screen.

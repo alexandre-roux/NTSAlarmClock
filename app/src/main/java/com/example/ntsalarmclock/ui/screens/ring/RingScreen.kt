@@ -57,7 +57,7 @@ fun RingScreenContent(
             style = MaterialTheme.typography.displaySmall
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(36.dp))
 
         NTSButton(
             text = "STOP",

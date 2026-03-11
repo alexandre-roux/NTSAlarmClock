@@ -106,7 +106,6 @@ fun HomeScreen(
 
             // Side effect that hosts the NTS preview player
             NTSPlayerEffect(
-                streamUrl = state.streamUrl,
                 shouldPlay = isPlaying,
                 volumePercent = volumeLive
             )
