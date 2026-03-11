@@ -8,9 +8,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import com.example.ntsalarmclock.playback.NTSPlayerFactory
 
 /**
  * Compose side-effect that hosts a lightweight ExoPlayer instance used
@@ -27,7 +25,6 @@ import androidx.media3.exoplayer.ExoPlayer
  */
 @Composable
 fun NTSPlayerEffect(
-    streamUrl: String,
     shouldPlay: Boolean,
     volumePercent: Int,
 ) {
@@ -36,29 +33,25 @@ fun NTSPlayerEffect(
 
     // Create the ExoPlayer instance once and keep it across recompositions
     val player = remember {
-        ExoPlayer.Builder(context).build().apply {
-            repeatMode = Player.REPEAT_MODE_OFF
-        }
+        NTSPlayerFactory.create(context)
     }
 
     /**
-     * Convert the app volume (0..100) into ExoPlayer's expected range (0f..1f)
-     * and apply it to the player.
+     * Convert the app volume (0..100) into ExoPlayer's expected range (0f..1f).
      */
-    fun applyVolume(percent: Int) {
-        val v = (percent.coerceIn(0, 100) / 100f).coerceIn(0f, 1f)
-        player.volume = v
+    fun toPlayerVolume(percent: Int): Float {
+        return (percent.coerceIn(0, 100) / 100f).coerceIn(0f, 1f)
     }
 
     // Prepare the player when the stream URL changes
-    LaunchedEffect(streamUrl) {
-        player.setMediaItem(MediaItem.fromUri(streamUrl))
-        player.prepare()
-    }
+    NTSPlayerFactory.prepareStream(
+        player = player,
+        volume = toPlayerVolume(volumePercent)
+    )
 
     // Update the player volume when the UI volume changes
     LaunchedEffect(volumePercent) {
-        applyVolume(volumePercent)
+        player.volume = toPlayerVolume(volumePercent)
     }
 
     // Start or pause playback depending on the requested state

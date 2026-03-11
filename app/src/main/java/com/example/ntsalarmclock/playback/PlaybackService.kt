@@ -16,7 +16,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
-import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.ntsalarmclock.R
 import com.example.ntsalarmclock.RingingActivity
@@ -32,9 +31,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-private const val NTS_STREAM_URL = "https://stream-relay-geo.ntslive.net/stream"
-private const val PROGRESSIVE_VOLUME_DURATION_MS = 30_000L
-private const val PROGRESSIVE_VOLUME_STEP_DELAY_MS = 500L
+private const val PROGRESSIVE_VOLUME_DURATION_MS = 60_000L
+private const val PROGRESSIVE_VOLUME_STEP_DELAY_MS = 1_000L
 
 /**
  * Foreground service responsible for playing the alarm audio.
@@ -145,24 +143,32 @@ class PlaybackService : Service() {
             val settings = repository.settings.first()
 
             // Convert the saved volume from 0..100 to the ExoPlayer range 0f..1f.
-            val targetVolume = (settings.volume.coerceIn(0, 100) / 100f)
+            val targetVolume = settings.volume.coerceIn(0, 100) / 100f
 
-            val currentPlayer = player ?: ExoPlayer.Builder(this@PlaybackService).build().also {
+            val currentPlayer = player ?: NTSPlayerFactory.create(
+                context = this@PlaybackService,
+                tag = TAG
+            ).also {
                 player = it
             }
 
-            currentPlayer.apply {
-                // Reset any previous playback state before starting the stream again.
-                stop()
-                clearMediaItems()
-                setMediaItem(MediaItem.fromUri(NTS_STREAM_URL))
+            Log.d(
+                TAG,
+                "startPlayback: url=$NTS_STREAM_URL, targetVolume=$targetVolume, progressive=${settings.progressiveVolume}"
+            )
 
-                // Start from zero when progressive volume is enabled.
-                volume = if (settings.progressiveVolume) 0f else targetVolume
+            // Start from zero when progressive volume is enabled.
+            val initialVolume = if (settings.progressiveVolume) 0f else targetVolume
 
-                prepare()
-                playWhenReady = true
-            }
+            NTSPlayerFactory.prepareStream(
+                player = currentPlayer,
+                volume = initialVolume
+            )
+
+            Log.d(TAG, "after prepare: volume=${currentPlayer.volume}")
+
+            currentPlayer.playWhenReady = true
+            Log.d(TAG, "after prepare: playWhenReady=${currentPlayer.playWhenReady}")
 
             if (settings.progressiveVolume) {
                 startProgressiveVolume(targetVolume)
