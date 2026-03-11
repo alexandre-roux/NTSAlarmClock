@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ntsalarmclock"
+    namespace = "com.alexroux.ntsalarmclock"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.ntsalarmclock"
+        applicationId = "com.alexroux.ntsalarmclock"
         minSdk = 27
         targetSdk = 36
         versionCode = 1
