@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">NTSAlarmClock</string>
+    <string name="app_name">NTS Alarm Clock</string>
     <string name="time">TIME</string>
     <string name="volume">VOLUME</string>
     <string name="days">DAYS</string>
