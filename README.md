@@ -2,7 +2,17 @@
 
 An Android alarm clock app that wakes you up using the live NTS Radio stream.
 I love to wake up to NTS in the morning and couldn't find an app to do it so I decided to develop one!
-Feel free to contribute and don't forget to [support NTS](https://www.nts.live/supporters).
+Feel free to contribute and don't forget to [support our beloved NTS Radio](https://www.nts.live/supporters).
+
+## Warnings
+
+1. This app needs your permission to display notifications so the alarm can actually start. It will be asked when you start it.
+2. This app also needs internet to play the stream, so put your phone in a silent mode when sleeping so the stream can run.
+3. I tested this app on Android 9 and 16 but I advise you to run a classic alarm at the same time in case the app doesn't work, at least for the first time.
+
+## Installation
+
+This app isn't available on the Google Play store
 
 ## Architecture
 
