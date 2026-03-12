@@ -43,11 +43,16 @@ fun NTSPlayerEffect(
         return (percent.coerceIn(0, 100) / 100f).coerceIn(0f, 1f)
     }
 
-    // Prepare the player when the stream URL changes
-    NTSPlayerFactory.prepareStream(
-        player = player,
-        volume = toPlayerVolume(volumePercent)
-    )
+    /**
+     * Prepare the player once when the composable enters the composition.
+     * This avoids restarting the stream on every recomposition.
+     */
+    LaunchedEffect(Unit) {
+        NTSPlayerFactory.prepareStream(
+            player = player,
+            volume = toPlayerVolume(volumePercent)
+        )
+    }
 
     // Update the player volume when the UI volume changes
     LaunchedEffect(volumePercent) {
@@ -68,10 +73,8 @@ fun NTSPlayerEffect(
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_STOP -> {
-                    // Stop audio when app loses focus, but keep player prepared
                     player.pause()
                 }
-
                 else -> Unit
             }
         }
@@ -79,7 +82,6 @@ fun NTSPlayerEffect(
         lifecycleOwner.lifecycle.addObserver(observer)
 
         onDispose {
-            // Clean up resources when the composable leaves the composition
             lifecycleOwner.lifecycle.removeObserver(observer)
             player.release()
         }
