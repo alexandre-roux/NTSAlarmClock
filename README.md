@@ -12,7 +12,7 @@ Feel free to contribute and don't forget to [support our beloved NTS Radio](http
 
 ## Installation
 
-This app isn't available on the Google Play store
+This app isn't available on the Google Play store. 
 
 ## Architecture
 
