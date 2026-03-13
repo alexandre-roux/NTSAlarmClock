@@ -1,0 +1,50 @@
+name: Release Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Decode keystore
+        shell: bash
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release.jks
+
+      - name: Create keystore.properties
+        shell: bash
+        run: |
+          cat <<EOF > ${{ github.workspace }}/keystore.properties
+          storeFile=release.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: true
