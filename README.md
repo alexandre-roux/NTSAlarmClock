@@ -1,7 +1,7 @@
 # NTS Alarm Clock
 
 [![Latest release](https://img.shields.io/github/v/release/alexandre-roux/NTSAlarmClock?display_name=tag)](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest)
-[![Download APK](https://img.shields.io/badge/Download-APK-white?logo=android)](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download-APK-white?logo=android)](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk)
 
 <img src="assets/screenshot.jpg" alt="Screenshot of the app" width="30%">
 
@@ -21,11 +21,11 @@ Feel free to contribute and don't forget to [support our beloved NTS Radio](http
 
 This app isn't available on the Google Play Store.
 
-Download the latest APK [here](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest).
+Download the latest APK [here](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk).
 
 You can also scan this QR code from your phone:
 
-![QR code to download the latest APK](https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://github.com/alexandre-roux/NTSAlarmClock/releases/latest)
+![QR code to download the latest APK](https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk)
 
 Then open the file to install.
 
