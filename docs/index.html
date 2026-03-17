@@ -125,6 +125,11 @@
           .buttons {
             text-align: left;
           }
+
+          .warnings ol {
+            text-align: left;
+          }
+
         }
     </style>
 </head>
@@ -136,11 +141,11 @@
         <h1>NTS Alarm Clock</h1>
         <p>
             An Android alarm clock app that wakes you up using the live NTS Radio stream.
-
+            <br/>
             I love to wake up to NTS in the morning and couldn't find an app to do it, so I decided
             to develop
             one!
-
+            <br/>
             Feel free to <a href="https://github.com/alexandre-roux/NTSAlarmClock">contribute</a>
             and don't forget to <a href="https://www.nts.live/supporters">support our beloved NTS
             Radio</a>.
@@ -171,6 +176,21 @@
                 alt="QR code to download the APK"
                 src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk"/>
         <div class="small">Scan from your phone to install</div>
+    </div>
+
+    <div class="warnings">
+        <h2>Warnings</h2>
+        <ol>
+            <li>This app needs your permission to display notifications so the alarm can actually
+                start. It will be asked when you start it.
+            </li>
+            <li>This app also needs internet to play the stream, so put your phone in a silent mode
+                when sleeping so the stream can run.
+            </li>
+            <li>I tested this app on Android 9 and 16 but I advise you to run a classic alarm at the
+                same time in case the app doesn't work, at least for the first time.
+            </li>
+        </ol>
     </div>
 
 </div>

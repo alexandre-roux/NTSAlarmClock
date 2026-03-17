@@ -48,7 +48,7 @@ Main building blocks:
 - **Repository Pattern**: `AlarmSettingsRepository` provides a clean API for the UI to interact with
   data.
 - **DataStore**: Used for persistent storage of alarm settings (time, enabled days, volume).
-- **AlarmManager**: Schedules precise alarm triggers, integrated with a `BroadcastReceiver` to
+- **AlarmManager**: Schedules the alarms, integrated with a `BroadcastReceiver` to
   handle system events.
 - **Foreground Service**: `PlaybackService` manages the lifecycle of the NTS stream to ensure it
   keeps playing.
