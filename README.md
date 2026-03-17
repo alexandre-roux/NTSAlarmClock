@@ -1,38 +1,54 @@
 # NTS Alarm Clock
 
+[![Latest release](https://img.shields.io/github/v/release/alexandre-roux/NTSAlarmClock?display_name=tag)](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download-APK-white?logo=android)](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk)
+
+<img src="assets/screenshot.jpg" alt="Screenshot of the app" width="30%">
+
 An Android alarm clock app that wakes you up using the live NTS Radio stream.
-I love to wake up to NTS in the morning and couldn't find an app to do it so I decided to develop one!
+I love to wake up to NTS in the morning and couldn't find an app to do it, so I decided to develop
+one!
 Feel free to contribute and don't forget to [support our beloved NTS Radio](https://www.nts.live/supporters).
 
 ## Warnings
 
 1. This app needs your permission to display notifications so the alarm can actually start. It will be asked when you start it.
 2. This app also needs internet to play the stream, so put your phone in a silent mode when sleeping so the stream can run.
-3. I tested this app on Android 9 and 16 but I advise you to run a classic alarm at the same time in case the app doesn't work, at least for the first time.
+3. I tested this app on Android 9 and 16, but I advise you to run a classic alarm at the same time
+   in case the app doesn't work, at least for the first time.
 
 ## Installation
 
-This app isn't available on the Google Play store. 
+This app isn't available on the Google Play Store.
 
-## Architecture
+Download the latest
+APK [here](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk).
 
-The app follows a strict MVVM architecture and separates concerns clearly between UI, ViewModel, Android system components, and playback logic. Here is a logical diagram:
+You can also scan this QR code from your phone:
+
+![QR code to download the latest APK](https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk)
+
+Then open the file to install.
+
+You may need to allow installation from unknown sources.
+
+## Architecture & tech stack
+
+The app follows a MVVM architecture. Here is a logical diagram:
 ![Logical diagram for the NTS Alarm Clock app](assets/logical-diagram.png)
 
+A more detailed version of the diagram is
+available [here](https://mermaid.ai/d/e19a6c7d-9039-4256-90a5-463057e3cd71).
+
 Main building blocks:
-- Compose UI for the presentation layer
-- ViewModels for state and orchestration
-- AlarmManager and BroadcastReceiver for scheduling
-- Foreground Service for audio playback
-- Media3 (ExoPlayer) for streaming audio
-- DataStore for persistence (planned)
 
-## Tech stack
-
-- Kotlin
-- Jetpack Compose
-- Android ViewModel
-- AlarmManager
-- Foreground Services
-- Media3 (ExoPlayer)
-- Gradle Version Catalog
+- **Compose UI**: Declarative UI layer using a single-activity architecture.
+- **ViewModels**: Handle UI state and orchestration using StateFlow and Coroutines.
+- **Repository Pattern**: `AlarmSettingsRepository` provides a clean API for the UI to interact with
+  data.
+- **DataStore**: Used for persistent storage of alarm settings (time, enabled days, volume).
+- **AlarmManager**: Schedules precise alarm triggers, integrated with a `BroadcastReceiver` to
+  handle system events.
+- **Foreground Service**: `PlaybackService` manages the lifecycle of the NTS stream to ensure it
+  keeps playing.
+- **Media3 (ExoPlayer)**: Used for streaming the live NTS Radio audio.
