@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NTS Alarm Clock</title>
+
+    <!-- Roboto font -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
+          rel="stylesheet">
+
+    <style>
+        body {
+          margin: 0;
+          background: #000;
+          color: #fff;
+          font-family: 'Roboto', sans-serif;
+          display: flex;
+          justify-content: center;
+        }
+
+        .container {
+          max-width: 1000px;
+          padding: 48px 24px;
+          text-align: center;
+        }
+
+        h1 {
+          font-size: 2.6rem;
+          margin-bottom: 16px;
+          font-weight: 700;
+        }
+
+        p {
+          color: #d0d0d0;
+          font-size: 1.05rem;
+          line-height: 1.6;
+          max-width: 600px;
+          margin: 0 auto 32px;
+        }
+
+        .buttons {
+          margin-bottom: 40px;
+          display: flex;
+          justify-content: center;
+        }
+
+        .button {
+          display: inline-block;
+          background: #fff;
+          color: #000;
+          text-decoration: none;
+          font-weight: 700;
+          padding: 14px 26px;
+          margin: 8px;
+        }
+
+        .button.secondary {
+          background: transparent;
+          color: #fff;
+          border: 1px solid #fff;
+        }
+
+        h2 {
+          margin-top: 48px;
+          font-size: 1.4rem;
+          font-weight: 700;
+        }
+
+        /* Screenshot */
+        .screenshot {
+          margin-top: 48px; /* same visual spacing as QR block */
+          margin-bottom: 40px; /* match spacing after buttons */
+        }
+
+        .screenshot img {
+          width: 100%;
+          max-width: 260px;
+          border-radius: 20px;
+          border: 2px solid #222;
+          box-shadow: 0 10px 30px rgba(255, 255, 255, 0.08);
+        }
+
+        /* QR */
+        .qr {
+          margin-top: 48px;
+        }
+
+        .qr img {
+          width: 180px;
+          height: 180px;
+          background: #fff;
+          padding: 10px;
+        }
+
+        .small {
+          margin-top: 12px;
+          font-size: 0.9rem;
+          color: #aaa;
+        }
+
+        /* Desktop layout */
+        @media (min-width: 768px) {
+          .hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-align: left;
+            gap: 40px;
+          }
+
+          .text {
+            flex: 1;
+          }
+
+          .screenshot {
+            flex: 1;
+            text-align: center;
+          }
+
+          .screenshot img {
+            max-width: 280px;
+          }
+
+          .buttons {
+            text-align: left;
+          }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <div class="text">
+        <h1>NTS Alarm Clock</h1>
+        <p>
+            An Android alarm clock app that wakes you up using the live NTS Radio stream.
+
+            I love to wake up to NTS in the morning and couldn't find an app to do it, so I decided
+            to develop
+            one!
+
+            Feel free to <a href="https://github.com/alexandre-roux/NTSAlarmClock">contribute</a>
+            and don't forget to <a href="https://www.nts.live/supporters">support our beloved NTS
+            Radio</a>.
+        </p>
+    </div>
+
+    <div class="screenshot">
+        <img alt="Screenshot of the app"
+             src="https://raw.githubusercontent.com/alexandre-roux/NTSAlarmClock/main/assets/screenshot.jpg"/>
+    </div>
+
+    <div class="buttons">
+        <a
+                class="button"
+                href="https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk">
+            Download APK
+        </a>
+
+        <a
+                class="button secondary"
+                href="https://github.com/alexandre-roux/NTSAlarmClock">
+            GitHub repository
+        </a>
+    </div>
+
+    <div class="qr">
+        <img
+                alt="QR code to download the APK"
+                src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk"/>
+        <div class="small">Scan from your phone to install</div>
+    </div>
+
+</div>
+</body>
+</html>

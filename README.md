@@ -6,8 +6,10 @@
 <img src="assets/screenshot.jpg" alt="Screenshot of the app" width="30%">
 
 An Android alarm clock app that wakes you up using the live NTS Radio stream.
+
 I love to wake up to NTS in the morning and couldn't find an app to do it, so I decided to develop
 one!
+
 Feel free to contribute and don't forget to [support our beloved NTS Radio](https://www.nts.live/supporters).
 
 ## Warnings
