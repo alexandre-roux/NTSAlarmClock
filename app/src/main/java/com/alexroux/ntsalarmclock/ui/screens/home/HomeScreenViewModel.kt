@@ -61,7 +61,8 @@ class HomeScreenViewModel(
     private val repository: AlarmSettingsRepository =
         DataStoreAlarmSettingsRepository(application.alarmSettingsDataStore)
 
-    private val alarmScheduler = AlarmScheduler(application)
+    private val alarmScheduler: AlarmScheduler =
+        AlarmScheduler(application)
 
     /**
      * Full UI state used by the screen.
