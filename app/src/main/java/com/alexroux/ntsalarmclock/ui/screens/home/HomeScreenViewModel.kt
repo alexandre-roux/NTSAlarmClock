@@ -55,14 +55,11 @@ data class AlarmScheduleConfig(
 )
 
 class HomeScreenViewModel(
-    application: Application
-) : AndroidViewModel(application) {
-
+    application: Application,
     private val repository: AlarmSettingsRepository =
-        DataStoreAlarmSettingsRepository(application.alarmSettingsDataStore)
-
-    private val alarmScheduler: AlarmScheduler =
-        AlarmScheduler(application)
+        DataStoreAlarmSettingsRepository(application.alarmSettingsDataStore),
+    private val alarmScheduler: AlarmScheduler = AlarmScheduler(application)
+) : AndroidViewModel(application) {
 
     /**
      * Full UI state used by the screen.

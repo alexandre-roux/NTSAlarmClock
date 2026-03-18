@@ -5,8 +5,11 @@ import android.util.Log
 import com.alexroux.ntsalarmclock.alarm.AlarmScheduler
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
+import com.alexroux.ntsalarmclock.playback.NTS_STREAM_URL
 import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
+import io.mockk.clearMocks
 import io.mockk.coVerify
+import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -59,16 +62,15 @@ class HomeScreenViewModelTest {
     }
 
     @Test
-    fun `initial state is Loading`() = runTest {
+    fun initialState_isLoading() = runTest {
         val viewModel = createViewModel()
+
         assertTrue(viewModel.uiState.value is HomeScreenUiState.Loading)
     }
 
     @Test
-    fun `state becomes Success after repository emits`() = runTest {
+    fun state_becomesSuccess_afterRepositoryEmits() = runTest {
         val viewModel = createViewModel()
-
-        // Start collecting to trigger SharingStarted.WhileSubscribed
         val job = backgroundScope.launch { viewModel.uiState.collect() }
 
         advanceUntilIdle()
@@ -77,76 +79,310 @@ class HomeScreenViewModelTest {
         assertEquals(8, state.hour)
         assertEquals(0, state.minute)
         assertEquals(false, state.enabled)
+        assertEquals(50, state.volume)
+        assertEquals(emptySet<DayOfWeekUi>(), state.enabledDays)
+        assertEquals(false, state.progressiveVolume)
+        assertEquals(NTS_STREAM_URL, state.streamUrl)
 
         job.cancel()
     }
 
     @Test
-    fun `onTimeChange updates repository`() = runTest {
+    fun onTimeChange_updatesRepository() = runTest {
         val viewModel = createViewModel()
         val job = backgroundScope.launch { viewModel.uiState.collect() }
+
         advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
 
         viewModel.onTimeChange(9, 30)
         advanceUntilIdle()
 
-        coVerify { repository.setTime(9, 30) }
+        coVerify(exactly = 1) { repository.setTime(9, 30) }
         job.cancel()
     }
 
     @Test
-    fun `onEnabledChange toggles enabled state`() = runTest {
+    fun onEnabledChange_togglesEnabledState() = runTest {
         val viewModel = createViewModel()
         val job = backgroundScope.launch { viewModel.uiState.collect() }
+
         advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
 
         viewModel.onEnabledChange()
         advanceUntilIdle()
 
-        coVerify { repository.setEnabled(true) }
+        coVerify(exactly = 1) { repository.setEnabled(true) }
         job.cancel()
     }
 
     @Test
-    fun `onToggleDay adds day if not present`() = runTest {
+    fun onToggleDay_addsDay_ifNotPresent() = runTest {
         val viewModel = createViewModel()
         val job = backgroundScope.launch { viewModel.uiState.collect() }
+
         advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
 
         viewModel.onToggleDay(DayOfWeekUi.MO)
         advanceUntilIdle()
 
-        coVerify { repository.setEnabledDays(setOf(DayOfWeekUi.MO)) }
+        coVerify(exactly = 1) { repository.setEnabledDays(setOf(DayOfWeekUi.MO)) }
         job.cancel()
     }
 
     @Test
-    fun `onToggleDay removes day if present`() = runTest {
+    fun onToggleDay_removesDay_ifPresent() = runTest {
         settingsFlow.value = settingsFlow.value.copy(enabledDays = setOf(DayOfWeekUi.MO))
+
         val viewModel = createViewModel()
         val job = backgroundScope.launch { viewModel.uiState.collect() }
+
         advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
 
         viewModel.onToggleDay(DayOfWeekUi.MO)
         advanceUntilIdle()
 
-        coVerify { repository.setEnabledDays(emptySet()) }
+        coVerify(exactly = 1) { repository.setEnabledDays(emptySet()) }
         job.cancel()
     }
 
     @Test
-    fun `onVolumeChange clamps volume`() = runTest {
+    fun onVolumeChange_clampsVolume() = runTest {
         val viewModel = createViewModel()
         val job = backgroundScope.launch { viewModel.uiState.collect() }
+
         advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
 
         viewModel.onVolumeChange(150)
         advanceUntilIdle()
-        coVerify { repository.setVolume(100) }
+
+        coVerify(exactly = 1) { repository.setVolume(100) }
+
+        clearMocks(repository, alarmScheduler)
 
         viewModel.onVolumeChange(-10)
         advanceUntilIdle()
-        coVerify { repository.setVolume(0) }
+
+        coVerify(exactly = 1) { repository.setVolume(0) }
+        job.cancel()
+    }
+
+    @Test
+    fun onHardwareVolumeKey_updatesVolumeRelativeToCurrentState() = runTest {
+        settingsFlow.value = settingsFlow.value.copy(volume = 50)
+
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        viewModel.onHardwareVolumeKey(7)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.setVolume(57) }
+        job.cancel()
+    }
+
+    @Test
+    fun onHardwareVolumeKey_clampsVolumeToBounds() = runTest {
+        settingsFlow.value = settingsFlow.value.copy(volume = 98)
+
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        viewModel.onHardwareVolumeKey(10)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.setVolume(100) }
+
+        clearMocks(repository, alarmScheduler)
+        settingsFlow.value = settingsFlow.value.copy(volume = 2)
+        advanceUntilIdle()
+
+        viewModel.onHardwareVolumeKey(-10)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.setVolume(0) }
+        job.cancel()
+    }
+
+    @Test
+    fun onProgressiveVolumeEnabledChange_updatesRepository() = runTest {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        viewModel.onProgressiveVolumeEnabledChange(true)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.setProgressiveVolume(true) }
+        job.cancel()
+    }
+
+    @Test
+    fun enabledScheduleConfig_schedulesNextAlarm() = runTest {
+        settingsFlow.value = settingsFlow.value.copy(
+            enabled = true,
+            hour = 7,
+            minute = 15,
+            enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR)
+        )
+
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+
+        coVerify(atLeast = 1) {
+            alarmScheduler.scheduleNextAlarm(
+                hour = 7,
+                minute = 15,
+                enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR)
+            )
+        }
+
+        job.cancel()
+    }
+
+    @Test
+    fun disabledScheduleConfig_cancelsAlarm() = runTest {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+
+        coVerify(atLeast = 1) { alarmScheduler.cancelAlarm() }
+        job.cancel()
+    }
+
+    @Test
+    fun changingEnabledState_falseToTrue_schedulesNextAlarm() = runTest {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        settingsFlow.value = settingsFlow.value.copy(enabled = true)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            alarmScheduler.scheduleNextAlarm(
+                hour = 8,
+                minute = 0,
+                enabledDays = emptySet()
+            )
+        }
+
+        job.cancel()
+    }
+
+    @Test
+    fun changingEnabledState_trueToFalse_cancelsAlarm() = runTest {
+        settingsFlow.value = settingsFlow.value.copy(enabled = true)
+
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        settingsFlow.value = settingsFlow.value.copy(enabled = false)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { alarmScheduler.cancelAlarm() }
+        job.cancel()
+    }
+
+    @Test
+    fun changingVolume_doesNotRescheduleAlarm() = runTest {
+        settingsFlow.value = settingsFlow.value.copy(enabled = true)
+
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        settingsFlow.value = settingsFlow.value.copy(volume = 80)
+        advanceUntilIdle()
+
+        confirmVerified(alarmScheduler)
+        job.cancel()
+    }
+
+    @Test
+    fun changingProgressiveVolume_doesNotRescheduleAlarm() = runTest {
+        settingsFlow.value = settingsFlow.value.copy(enabled = true)
+
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        settingsFlow.value = settingsFlow.value.copy(progressiveVolume = true)
+        advanceUntilIdle()
+
+        confirmVerified(alarmScheduler)
+        job.cancel()
+    }
+
+    @Test
+    fun changingTime_reschedulesAlarm_whenEnabled() = runTest {
+        settingsFlow.value = settingsFlow.value.copy(enabled = true)
+
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        settingsFlow.value = settingsFlow.value.copy(hour = 9, minute = 45)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            alarmScheduler.scheduleNextAlarm(
+                hour = 9,
+                minute = 45,
+                enabledDays = emptySet()
+            )
+        }
+
+        job.cancel()
+    }
+
+    @Test
+    fun changingEnabledDays_reschedulesAlarm_whenEnabled() = runTest {
+        settingsFlow.value = settingsFlow.value.copy(enabled = true)
+
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        settingsFlow.value = settingsFlow.value.copy(enabledDays = setOf(DayOfWeekUi.TU))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            alarmScheduler.scheduleNextAlarm(
+                hour = 8,
+                minute = 0,
+                enabledDays = setOf(DayOfWeekUi.TU)
+            )
+        }
+
         job.cancel()
     }
 

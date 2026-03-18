@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import android.util.Log
+import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.alarmSettingsDataStore
 import kotlinx.coroutines.CoroutineScope
@@ -22,29 +23,20 @@ import kotlinx.coroutines.withContext
  * - Show the alarm notification / UI
  * - Re-schedule the next occurrence only for recurring alarms
  */
-class AlarmReceiver : BroadcastReceiver() {
+open class AlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
-        val TAG = "AlarmReceiver"
         Log.d(TAG, "onReceive")
 
-        val pendingResult = goAsync()
-
-        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-        val wakeLock = powerManager.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "${context.packageName}:alarm_receiver"
-        )
+        val pendingResult = createPendingResult()
+        val wakeLock = createWakeLock(context)
 
         // Keep the CPU awake for the short amount of work done here.
         wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
 
-        CoroutineScope(Dispatchers.IO).launch {
+        createScope().launch {
             try {
-                val repository = DataStoreAlarmSettingsRepository(
-                    context.alarmSettingsDataStore
-                )
-
+                val repository = createRepository(context)
                 val settings = repository.settings.first()
 
                 Log.d(
@@ -57,16 +49,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
                 // Show the alarm entry point for the user.
                 withContext(Dispatchers.Main) {
-                    val notificationManager =
-                        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-                    val notification =
-                        AlarmNotification.buildAlarmNotification(context).build()
-
-                    notificationManager.notify(
-                        AlarmNotification.NOTIFICATION_ID,
-                        notification
-                    )
+                    showAlarmNotification(context)
                 }
 
                 /**
@@ -79,7 +62,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 if (settings.enabled && settings.enabledDays.isNotEmpty()) {
                     Log.d(TAG, "Recurring alarm detected, scheduling the next occurrence")
 
-                    AlarmScheduler(context).scheduleNextAlarm(
+                    createScheduler(context).scheduleNextAlarm(
                         hour = settings.hour,
                         minute = settings.minute,
                         enabledDays = settings.enabledDays
@@ -102,7 +85,63 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
+    /**
+     * Overridable for tests.
+     */
+    protected open fun createRepository(context: Context): AlarmSettingsRepository {
+        return DataStoreAlarmSettingsRepository(context.alarmSettingsDataStore)
+    }
+
+    /**
+     * Overridable for tests.
+     */
+    protected open fun createScheduler(context: Context): AlarmScheduler {
+        return AlarmScheduler(context)
+    }
+
+    /**
+     * Overridable for tests.
+     */
+    protected open fun createScope(): CoroutineScope {
+        return CoroutineScope(Dispatchers.IO)
+    }
+
+    /**
+     * Overridable for tests.
+     */
+    protected open fun createPendingResult(): PendingResult {
+        return goAsync()
+    }
+
+    /**
+     * Overridable for tests.
+     */
+    protected open fun createWakeLock(context: Context): PowerManager.WakeLock {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        return powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "${context.packageName}:alarm_receiver"
+        )
+    }
+
+    /**
+     * Overridable for tests.
+     */
+    protected open fun showAlarmNotification(context: Context) {
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val notification =
+            AlarmNotification.buildAlarmNotification(context).build()
+
+        notificationManager.notify(
+            AlarmNotification.NOTIFICATION_ID,
+            notification
+        )
+    }
+
     companion object {
+        private const val TAG = "AlarmReceiver"
         private const val WAKE_LOCK_TIMEOUT_MS = 10_000L
     }
 }

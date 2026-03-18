@@ -107,13 +107,15 @@ object NextAlarmCalculator {
 
         return when {
             hours > 0 && minutes > 0 ->
-                "This alarm is scheduled in $hours hours and $minutes minutes"
+                "This alarm is scheduled in " +
+                        "$hours ${pluralize(hours, "hour")} and " +
+                        "$minutes ${pluralize(minutes, "minute")}"
 
             hours > 0 ->
-                "This alarm is scheduled in $hours hours"
+                "This alarm is scheduled in $hours ${pluralize(hours, "hour")}"
 
             minutes > 0 ->
-                "This alarm is scheduled in $minutes minutes"
+                "This alarm is scheduled in $minutes ${pluralize(minutes, "minute")}"
 
             else ->
                 "This alarm is scheduled in less than a minute"
@@ -133,5 +135,12 @@ object NextAlarmCalculator {
             DayOfWeekUi.SA -> DayOfWeek.SATURDAY
             DayOfWeekUi.SU -> DayOfWeek.SUNDAY
         }
+    }
+
+    /**
+     * Return the singular or plural unit label based on count.
+     */
+    private fun pluralize(value: Long, singular: String): String {
+        return if (value == 1L) singular else "${singular}s"
     }
 }
