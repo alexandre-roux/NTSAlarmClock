@@ -1,6 +1,7 @@
 package com.alexroux.ntsalarmclock.playback
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -12,10 +13,15 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.RingingActivity
@@ -57,6 +63,22 @@ class PlaybackService : Service() {
 
     // Job used to control progressive volume updates.
     private var progressiveVolumeJob: Job? = null
+
+    // Prevents switching to the local fallback audio more than once.
+    private var hasSwitchedToFallbackAudio = false
+
+    // Remembers the target volume so fallback audio can reuse it.
+    private var targetVolume: Float = 1f
+
+    // Remembers whether progressive volume is enabled for the current alarm.
+    private var progressiveVolumeEnabled: Boolean = false
+
+    private val playerListener = object : Player.Listener {
+        override fun onPlayerError(error: PlaybackException) {
+            Log.e(TAG, "Player error while playing alarm audio", error)
+            switchToFallbackAudioIfNeeded()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -143,22 +165,29 @@ class PlaybackService : Service() {
             val settings = repository.settings.first()
 
             // Convert the saved volume from 0..100 to the ExoPlayer range 0f..1f.
-            val targetVolume = settings.volume.coerceIn(0, 100) / 100f
+            targetVolume = settings.volume.coerceIn(0, 100) / 100f
+            progressiveVolumeEnabled = settings.progressiveVolume
+            hasSwitchedToFallbackAudio = false
+            AlarmPlaybackState.setFallbackAudioActive(false)
 
             val currentPlayer = player ?: NTSPlayerFactory.create(
                 context = this@PlaybackService,
                 tag = TAG
             ).also {
+                it.addListener(playerListener)
                 player = it
             }
 
             Log.d(
                 TAG,
-                "startPlayback: url=$NTS_STREAM_URL, targetVolume=$targetVolume, progressive=${settings.progressiveVolume}"
+                "startPlayback: url=$NTS_STREAM_URL, targetVolume=$targetVolume, progressive=$progressiveVolumeEnabled"
             )
 
+            // Use normal repeat mode for the remote stream.
+            currentPlayer.repeatMode = Player.REPEAT_MODE_OFF
+
             // Start from zero when progressive volume is enabled.
-            val initialVolume = if (settings.progressiveVolume) 0f else targetVolume
+            val initialVolume = if (progressiveVolumeEnabled) 0f else targetVolume
 
             NTSPlayerFactory.prepareStream(
                 player = currentPlayer,
@@ -170,10 +199,43 @@ class PlaybackService : Service() {
             currentPlayer.playWhenReady = true
             Log.d(TAG, "after prepare: playWhenReady=${currentPlayer.playWhenReady}")
 
-            if (settings.progressiveVolume) {
+            if (progressiveVolumeEnabled) {
                 startProgressiveVolume(targetVolume)
             }
         }
+    }
+
+    /**
+     * Switches to the bundled local audio if the remote stream cannot be played.
+     */
+    @OptIn(UnstableApi::class)
+    private fun switchToFallbackAudioIfNeeded() {
+        if (hasSwitchedToFallbackAudio) {
+            Log.w(TAG, "Fallback audio already active, ignoring additional player error")
+            return
+        }
+
+        val currentPlayer = player ?: run {
+            Log.e(TAG, "Cannot switch to fallback audio because player is null")
+            return
+        }
+
+        hasSwitchedToFallbackAudio = true
+        AlarmPlaybackState.setFallbackAudioActive(true)
+
+        Log.w(TAG, "Switching to fallback audio")
+
+        val fallbackMediaItem =
+            MediaItem.fromUri("android.resource://$packageName/${R.raw.northern_glade}")
+
+        val currentVolume = currentPlayer.volume
+
+        // Loop the local fallback track continuously while the alarm is ringing.
+        currentPlayer.repeatMode = Player.REPEAT_MODE_ONE
+        currentPlayer.setMediaItem(fallbackMediaItem)
+        currentPlayer.volume = currentVolume
+        currentPlayer.prepare()
+        currentPlayer.playWhenReady = true
     }
 
     /**
@@ -211,7 +273,11 @@ class PlaybackService : Service() {
         progressiveVolumeJob?.cancel()
         progressiveVolumeJob = null
 
+        AlarmPlaybackState.setFallbackAudioActive(false)
+        hasSwitchedToFallbackAudio = false
+
         player?.runCatching {
+            removeListener(playerListener)
             stop()
             release()
         }?.onFailure {
@@ -233,6 +299,7 @@ class PlaybackService : Service() {
     /**
      * Builds the foreground notification displayed while the alarm is ringing.
      */
+    @SuppressLint("FullScreenIntentPolicy")
     private fun buildForegroundAlarmNotification(): Notification {
         val notificationsEnabled = NotificationManagerCompat.from(this).areNotificationsEnabled()
 
@@ -294,11 +361,7 @@ class PlaybackService : Service() {
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(fullScreenPendingIntent)
-
-            // Show the ringing screen above the lock screen when possible.
             .setFullScreenIntent(fullScreenPendingIntent, true)
-
-            // Allow the user to stop the alarm directly from the notification.
             .addAction(R.drawable.ic_launcher_foreground, "Stop", stopPendingIntent)
             .build()
     }

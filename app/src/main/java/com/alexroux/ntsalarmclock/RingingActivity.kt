@@ -6,7 +6,10 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import com.alexroux.ntsalarmclock.playback.AlarmPlaybackState
 import com.alexroux.ntsalarmclock.playback.PlaybackService
 import com.alexroux.ntsalarmclock.ui.screens.ring.RingScreen
 import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
@@ -39,9 +42,12 @@ class RingingActivity : ComponentActivity() {
         startAlarmService()
 
         setContent {
+            val isFallbackAudioActive by AlarmPlaybackState.isFallbackAudioActive.collectAsState()
+
             NTSAlarmClockTheme {
                 Surface {
                     RingScreen(
+                        isFallbackAudioActive = isFallbackAudioActive,
                         onDismiss = {
                             // Stop playback and close the ringing screen
                             stopAlarmService()
