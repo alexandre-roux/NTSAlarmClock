@@ -12,6 +12,14 @@ one!
 
 Feel free to contribute and don't forget to [support our beloved NTS Radio](https://www.nts.live/supporters).
 
+## Features
+
+- Simple interface to set your alarm
+- Adjust the maximum volume
+- You can configure a progressive volume that increases over time
+- Choose the days you want your alarm to repeat
+- Fallback music plays if the stream is unavailable
+
 ## Warnings
 
 1. This app needs your permission to display notifications so the alarm can actually start. It will be asked when you start it.
@@ -53,3 +61,11 @@ Main building blocks:
 - **Foreground Service**: `PlaybackService` manages the lifecycle of the NTS stream to ensure it
   keeps playing.
 - **Media3 (ExoPlayer)**: Used for streaming the live NTS Radio audio.
+
+## Music credits
+
+The fallback offline track used by this app is:
+
+"Northern Glade" by Kevin MacLeod (incompetech.com)  
+Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0):  
+http://creativecommons.org/licenses/by/4.0/
