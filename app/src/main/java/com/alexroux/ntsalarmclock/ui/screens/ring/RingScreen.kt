@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -30,10 +31,12 @@ import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
  */
 @Composable
 fun RingScreen(
+    isFallbackAudioActive: Boolean,
     onDismiss: () -> Unit,
     viewModel: RingScreenViewModel = viewModel()
 ) {
     RingScreenContent(
+        isFallbackAudioActive = isFallbackAudioActive,
         onStopClick = {
             viewModel.stopAlarm()
             onDismiss()
@@ -43,6 +46,7 @@ fun RingScreen(
 
 @Composable
 fun RingScreenContent(
+    isFallbackAudioActive: Boolean,
     onStopClick: () -> Unit
 ) {
     Column(
@@ -57,7 +61,18 @@ fun RingScreenContent(
             style = MaterialTheme.typography.displaySmall
         )
 
-        Spacer(modifier = Modifier.height(36.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (isFallbackAudioActive) {
+            Text(
+                text = stringResource(R.string.offline_fallback_music_message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         NTSButton(
             text = "STOP",
@@ -72,7 +87,10 @@ fun RingScreenContent(
 fun RingScreenPreview() {
     NTSAlarmClockTheme {
         Surface {
-            RingScreenContent(onStopClick = {})
+            RingScreenContent(
+                isFallbackAudioActive = true,
+                onStopClick = {}
+            )
         }
     }
 }
