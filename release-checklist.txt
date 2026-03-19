@@ -3,7 +3,7 @@ git add .
 git commit -m "Prepare release v1.0.0"
 
 2. Create tag
-git tag v1.0.0
+git tag -a v1.0.0 -m "message"
 
 3. Push code and tag
 git push origin main
