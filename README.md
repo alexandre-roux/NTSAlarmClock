@@ -47,7 +47,7 @@ The app follows a MVVM architecture. Here is a logical diagram:
 ![Logical diagram for the NTS Alarm Clock app](assets/logical-diagram.png)
 
 A more detailed version of the diagram is
-available [here](https://mermaid.ai/d/e19a6c7d-9039-4256-90a5-463057e3cd71).
+available [here](https://mermaid.ai/d/91e95f5c-8473-48df-b634-e855d02e446f).
 
 Main building blocks:
 
