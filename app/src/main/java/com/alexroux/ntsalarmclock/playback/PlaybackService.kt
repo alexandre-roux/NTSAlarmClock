@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 
 private const val PROGRESSIVE_VOLUME_DURATION_MS = 60_000L
 private const val PROGRESSIVE_VOLUME_STEP_DELAY_MS = 1_000L
+private const val MANUAL_VOLUME_STEP = 0.1f
 
 /**
  * Foreground service responsible for playing the alarm audio.
@@ -53,6 +54,8 @@ class PlaybackService : Service() {
 
         const val ACTION_START_ALARM = "com.alexroux.ntsalarmclock.playback.action.START_ALARM"
         const val ACTION_STOP_ALARM = "com.alexroux.ntsalarmclock.playback.action.STOP_ALARM"
+        const val ACTION_VOLUME_UP = "com.alexroux.ntsalarmclock.playback.action.VOLUME_UP"
+        const val ACTION_VOLUME_DOWN = "com.alexroux.ntsalarmclock.playback.action.VOLUME_DOWN"
     }
 
     // Player instance used to stream the alarm audio.
@@ -97,6 +100,8 @@ class PlaybackService : Service() {
         when (intent?.action) {
             ACTION_START_ALARM -> startAlarm()
             ACTION_STOP_ALARM -> stopAlarm()
+            ACTION_VOLUME_UP -> adjustTemporaryVolumeBy(MANUAL_VOLUME_STEP)
+            ACTION_VOLUME_DOWN -> adjustTemporaryVolumeBy(-MANUAL_VOLUME_STEP)
             else -> Unit
         }
 
@@ -264,6 +269,26 @@ class PlaybackService : Service() {
 
             currentPlayer.volume = targetVolume
         }
+    }
+
+    /**
+     * Adjusts the current alarm volume temporarily without persisting it.
+     *
+     * Manual user control takes priority over progressive volume, so any in-progress
+     * automatic ramp is stopped as soon as a hardware volume button is used.
+     */
+    private fun adjustTemporaryVolumeBy(delta: Float) {
+        val currentPlayer = player ?: return
+
+        progressiveVolumeJob?.cancel()
+        progressiveVolumeJob = null
+        progressiveVolumeEnabled = false
+
+        val updatedVolume = (currentPlayer.volume + delta).coerceIn(0f, 1f)
+        currentPlayer.volume = updatedVolume
+        targetVolume = updatedVolume
+
+        Log.d(TAG, "Manual volume change applied: volume=$updatedVolume")
     }
 
     /**

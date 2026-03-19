@@ -1,7 +1,9 @@
 package com.alexroux.ntsalarmclock
 
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -28,6 +30,9 @@ class RingingActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Keep media as the controlled stream while this activity is visible.
+        volumeControlStream = AudioManager.STREAM_MUSIC
 
         // Allow the activity to appear on top of the lock screen
         setShowWhenLocked(true)
@@ -59,6 +64,22 @@ class RingingActivity : ComponentActivity() {
         }
     }
 
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP -> {
+                sendVolumeAction(PlaybackService.ACTION_VOLUME_UP)
+                true
+            }
+
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                sendVolumeAction(PlaybackService.ACTION_VOLUME_DOWN)
+                true
+            }
+
+            else -> super.onKeyDown(keyCode, event)
+        }
+    }
+
     /**
      * Starts the foreground service that plays the alarm stream.
      *
@@ -78,6 +99,16 @@ class RingingActivity : ComponentActivity() {
     private fun stopAlarmService() {
         val intent = Intent(this, PlaybackService::class.java).apply {
             action = PlaybackService.ACTION_STOP_ALARM
+        }
+        startService(intent)
+    }
+
+    /**
+     * Sends a volume adjustment command to the playback service.
+     */
+    private fun sendVolumeAction(action: String) {
+        val intent = Intent(this, PlaybackService::class.java).apply {
+            this.action = action
         }
         startService(intent)
     }

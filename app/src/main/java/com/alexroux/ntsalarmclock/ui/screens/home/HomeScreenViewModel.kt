@@ -54,13 +54,11 @@ data class AlarmScheduleConfig(
     val enabledDays: Set<DayOfWeekUi>
 )
 
-class HomeScreenViewModel(
+class HomeScreenViewModel @JvmOverloads constructor(
     application: Application,
     private val repository: AlarmSettingsRepository =
-        DataStoreAlarmSettingsRepository(
-            application.alarmSettingsDataStore
-        ),
-    alarmScheduler: AlarmScheduler =
+        DataStoreAlarmSettingsRepository(application.alarmSettingsDataStore),
+    private val alarmScheduler: AlarmScheduler =
         AlarmScheduler(application)
 ) : AndroidViewModel(application) {
 
@@ -99,14 +97,14 @@ class HomeScreenViewModel(
             .distinctUntilChanged()
 
     init {
-        observeAlarmScheduling(alarmScheduler)
+        observeAlarmScheduling()
     }
 
     /**
      * Observe schedule-related changes and update the alarm planner only
      * when necessary.
      */
-    private fun observeAlarmScheduling(alarmScheduler: AlarmScheduler) {
+    private fun observeAlarmScheduling() {
         viewModelScope.launch {
             scheduleConfigFlow.collect { config ->
                 Log.d(
