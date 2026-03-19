@@ -22,6 +22,7 @@ import kotlinx.coroutines.withContext
  * - Wake up the app when the alarm fires
  * - Show the alarm notification / UI
  * - Re-schedule the next occurrence only for recurring alarms
+ * - Disable one-shot alarms after they have fired
  */
 open class AlarmReceiver : BroadcastReceiver() {
 
@@ -72,6 +73,16 @@ open class AlarmReceiver : BroadcastReceiver() {
                         TAG,
                         "No re-schedule needed: enabled=${settings.enabled}, days=${settings.enabledDays}"
                     )
+
+                    /**
+                     * A one-shot alarm has no selected recurring days.
+                     * Once it has fired, persist it as disabled so the UI state
+                     * stays consistent with the actual system schedule.
+                     */
+                    if (settings.enabled && settings.enabledDays.isEmpty()) {
+                        Log.d(TAG, "One-shot alarm consumed, disabling it")
+                        repository.setEnabled(false)
+                    }
                 }
             } catch (t: Throwable) {
                 Log.e(TAG, "AlarmReceiver failed", t)

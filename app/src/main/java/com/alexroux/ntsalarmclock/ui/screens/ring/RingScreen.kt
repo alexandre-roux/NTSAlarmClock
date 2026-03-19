@@ -10,6 +10,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -35,8 +37,11 @@ fun RingScreen(
     onDismiss: () -> Unit,
     viewModel: RingScreenViewModel = viewModel()
 ) {
+    val currentShow by viewModel.currentShow.collectAsState()
+
     RingScreenContent(
         isFallbackAudioActive = isFallbackAudioActive,
+        currentShow = currentShow,
         onStopClick = {
             viewModel.stopAlarm()
             onDismiss()
@@ -47,6 +52,7 @@ fun RingScreen(
 @Composable
 fun RingScreenContent(
     isFallbackAudioActive: Boolean,
+    currentShow: String?,
     onStopClick: () -> Unit
 ) {
     Column(
@@ -62,6 +68,15 @@ fun RingScreenContent(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
+
+        if (!currentShow.isNullOrBlank()) {
+            Text(
+                text = stringResource(R.string.currently_playing) + currentShow,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary,
+                textAlign = TextAlign.Center,
+            )
+        }
 
         if (isFallbackAudioActive) {
             Text(
@@ -89,6 +104,7 @@ fun RingScreenPreview() {
         Surface {
             RingScreenContent(
                 isFallbackAudioActive = true,
+                currentShow = "Breakfast Show",
                 onStopClick = {}
             )
         }

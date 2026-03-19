@@ -28,7 +28,10 @@ object NTSPlayerFactory {
 
         return ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_OFF
-            setAudioAttributes(audioAttributes, true)
+
+            // Automatic audio focus handling is not compatible with USAGE_ALARM
+            // so we disable it
+            setAudioAttributes(audioAttributes, false)
 
             addListener(
                 object : Player.Listener {

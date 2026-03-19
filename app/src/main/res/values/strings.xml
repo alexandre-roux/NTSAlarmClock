@@ -14,4 +14,5 @@
     <string name="open_settings">OPEN SETTINGS</string>
     <string name="alarm_ringing">TIME TO TUNE IN!</string>
     <string name="offline_fallback_music_message">This backup music is playing because NTS cannot be played. Maybe your internet is disabled?</string>
+    <string name="currently_playing">"Currently playing: "</string>
 </resources>
