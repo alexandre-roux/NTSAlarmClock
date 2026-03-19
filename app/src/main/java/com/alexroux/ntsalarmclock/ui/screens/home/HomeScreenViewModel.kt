@@ -55,16 +55,14 @@ data class AlarmScheduleConfig(
 )
 
 class HomeScreenViewModel(
-    application: Application
-) : AndroidViewModel(application) {
-
+    application: Application,
     private val repository: AlarmSettingsRepository =
         DataStoreAlarmSettingsRepository(
-            getApplication<Application>().alarmSettingsDataStore
-        )
-
-    private val alarmScheduler: AlarmScheduler =
-        AlarmScheduler(getApplication())
+            application.alarmSettingsDataStore
+        ),
+    alarmScheduler: AlarmScheduler =
+        AlarmScheduler(application)
+) : AndroidViewModel(application) {
 
     /**
      * Full UI state used by the screen.
@@ -101,14 +99,14 @@ class HomeScreenViewModel(
             .distinctUntilChanged()
 
     init {
-        observeAlarmScheduling()
+        observeAlarmScheduling(alarmScheduler)
     }
 
     /**
      * Observe schedule-related changes and update the alarm planner only
      * when necessary.
      */
-    private fun observeAlarmScheduling() {
+    private fun observeAlarmScheduling(alarmScheduler: AlarmScheduler) {
         viewModelScope.launch {
             scheduleConfigFlow.collect { config ->
                 Log.d(
