@@ -1,6 +1,4 @@
-# NTS Alarm Clock
-
-# (Work In Progress)
+# NTS Alarm Clock (Work In Progress)
 
 [![Latest release](https://img.shields.io/github/v/release/alexandre-roux/NTSAlarmClock?display_name=tag)](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest)
 [![Download APK](https://img.shields.io/badge/Download-APK-white?logo=android)](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk)
