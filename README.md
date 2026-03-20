@@ -1,5 +1,7 @@
 # NTS Alarm Clock
 
+# (Work In Progress)
+
 [![Latest release](https://img.shields.io/github/v/release/alexandre-roux/NTSAlarmClock?display_name=tag)](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest)
 [![Download APK](https://img.shields.io/badge/Download-APK-white?logo=android)](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk)
 
@@ -22,9 +24,13 @@ Feel free to contribute and don't forget to [support our beloved NTS Radio](http
 
 ## Warnings
 
-1. This app needs your permission to display notifications so the alarm can actually start. It will be asked when you start it.
-2. This app also needs internet to play the stream, so put your phone in a silent mode when sleeping so the stream can run.
-3. I tested this app on Android 9 and 16, but I advise you to run a classic alarm at the same time
+1. I have to put the app as Work In Progress as users reported that the audio wasn't playing on some
+   devices.
+2. This app needs your permission to display notifications so the alarm can actually start. It will
+   be asked when you start it.
+3. This app also needs internet to play the stream, so put your phone in a silent mode when sleeping
+   so the stream can run.
+4. I tested this app on Android 9 and 16, but I advise you to run a classic alarm at the same time
    in case the app doesn't work, at least for the first time.
 
 ## Installation
