@@ -10,7 +10,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.core.content.ContextCompat
 import com.alexroux.ntsalarmclock.playback.AlarmPlaybackState
 import com.alexroux.ntsalarmclock.playback.PlaybackService
 import com.alexroux.ntsalarmclock.ui.screens.ring.RingScreen
@@ -22,7 +21,7 @@ import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
  * This activity is responsible for:
  * - waking the device screen if necessary
  * - showing the alarm UI on top of the lock screen
- * - starting the alarm playback service
+ * - controlling an alarm playback service that is already running
  *
  * The UI itself is implemented in [RingScreen].
  */
@@ -42,9 +41,6 @@ class RingingActivity : ComponentActivity() {
 
         // Keep the screen awake while the alarm is ringing
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-        // Start the foreground service responsible for playing the alarm sound
-        startAlarmService()
 
         setContent {
             val isFallbackAudioActive by AlarmPlaybackState.isFallbackAudioActive.collectAsState()
@@ -78,19 +74,6 @@ class RingingActivity : ComponentActivity() {
 
             else -> super.onKeyDown(keyCode, event)
         }
-    }
-
-    /**
-     * Starts the foreground service that plays the alarm stream.
-     *
-     * The service runs in the foreground to ensure playback continues
-     * even if the app process is under memory pressure.
-     */
-    private fun startAlarmService() {
-        val intent = Intent(this, PlaybackService::class.java).apply {
-            action = PlaybackService.ACTION_START_ALARM
-        }
-        ContextCompat.startForegroundService(this, intent)
     }
 
     /**

@@ -6,9 +6,11 @@ import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.alarmSettingsDataStore
+import com.alexroux.ntsalarmclock.playback.PlaybackService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -21,6 +23,7 @@ import kotlinx.coroutines.withContext
  * Responsibilities:
  * - Wake up the app when the alarm fires
  * - Show the alarm notification / UI
+ * - Start alarm playback in the foreground service
  * - Re-schedule the next occurrence only for recurring alarms
  * - Disable one-shot alarms after they have fired
  */
@@ -48,9 +51,10 @@ open class AlarmReceiver : BroadcastReceiver() {
                             "progressiveVolume=${settings.progressiveVolume}"
                 )
 
-                // Show the alarm entry point for the user.
+                // Show the alarm entry point for the user and start playback immediately.
                 withContext(Dispatchers.Main) {
                     showAlarmNotification(context)
+                    startPlaybackService(context)
                 }
 
                 /**
@@ -96,37 +100,22 @@ open class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    /**
-     * Overridable for tests.
-     */
     protected open fun createRepository(context: Context): AlarmSettingsRepository {
         return DataStoreAlarmSettingsRepository(context.alarmSettingsDataStore)
     }
 
-    /**
-     * Overridable for tests.
-     */
     protected open fun createScheduler(context: Context): AlarmScheduler {
         return AlarmScheduler(context)
     }
 
-    /**
-     * Overridable for tests.
-     */
     protected open fun createScope(): CoroutineScope {
         return CoroutineScope(Dispatchers.IO)
     }
 
-    /**
-     * Overridable for tests.
-     */
     protected open fun createPendingResult(): PendingResult {
         return goAsync()
     }
 
-    /**
-     * Overridable for tests.
-     */
     protected open fun createWakeLock(context: Context): PowerManager.WakeLock {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         return powerManager.newWakeLock(
@@ -135,9 +124,6 @@ open class AlarmReceiver : BroadcastReceiver() {
         )
     }
 
-    /**
-     * Overridable for tests.
-     */
     protected open fun showAlarmNotification(context: Context) {
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -149,6 +135,13 @@ open class AlarmReceiver : BroadcastReceiver() {
             AlarmNotification.NOTIFICATION_ID,
             notification
         )
+    }
+
+    protected open fun startPlaybackService(context: Context) {
+        val intent = Intent(context, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_START_ALARM
+        }
+        ContextCompat.startForegroundService(context, intent)
     }
 
     companion object {
