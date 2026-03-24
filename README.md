@@ -25,10 +25,10 @@ Feel free to contribute and don't forget to [support our beloved NTS Radio](http
 
 1. This app needs your permission to display notifications so the alarm can actually start. It will
    be asked when you start it.
-   2This app also needs internet to play the stream, so put your phone in a silent mode when
+2. This app also needs internet to play the stream, so put your phone in a silent mode when
    sleeping
    so the stream can run.
-   3I tested this app on recent versions of Android, but I advise you to run a classic alarm at the
+3. I tested this app on recent versions of Android, but I advise you to run a classic alarm at the
    same time
    in case the app doesn't work, at least for the first time.
 
