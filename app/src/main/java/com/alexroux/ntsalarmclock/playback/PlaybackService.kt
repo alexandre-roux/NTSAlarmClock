@@ -60,6 +60,9 @@ class PlaybackService : Service() {
         const val ACTION_SET_VOLUME = "com.alexroux.ntsalarmclock.playback.action.SET_VOLUME"
         const val EXTRA_VOLUME = "extra_volume"
         const val EXTRA_FALLBACK_AUDIO_ACTIVE = "extra_fallback_audio_active"
+        const val ACTION_BRING_TO_FRONT =
+            "com.alexroux.ntsalarmclock.playback.action.BRING_TO_FRONT"
+
     }
 
     // Player instance used to stream the alarm audio.
@@ -111,6 +114,7 @@ class PlaybackService : Service() {
                 val volume = intent.getIntExtra(EXTRA_VOLUME, 70)
                 setAbsoluteVolume(volume)
             }
+            ACTION_BRING_TO_FRONT -> bringRingingActivityToFront()
 
             else -> Unit
         }
@@ -127,8 +131,7 @@ class PlaybackService : Service() {
 
         val notification = buildForegroundAlarmNotificationOrNull()
         if (notification == null) {
-            Log.e(TAG, "Notification build failed, launching RingingActivity as fallback")
-            launchRingingActivityAsFallback()
+            Log.e(TAG, "Notification build failed")
             stopSelf()
             return
         }
@@ -140,7 +143,6 @@ class PlaybackService : Service() {
         }
 
         try {
-            // Move the service to the foreground immediately so Android allows it to keep running.
             ServiceCompat.startForeground(
                 this,
                 AlarmNotification.NOTIFICATION_ID,
@@ -148,33 +150,22 @@ class PlaybackService : Service() {
                 fgsType
             )
         } catch (t: Throwable) {
-            Log.e(TAG, "startForeground failed, launching RingingActivity as fallback", t)
-            launchRingingActivityAsFallback()
+            Log.e(TAG, "startForeground failed", t)
             stopSelf()
             return
         }
 
-        launchRingingActivityAsFallback()
-
         startPlayback()
     }
 
-    /**
-     * Launches RingingActivity directly as a last resort fallback when the
-     * foreground service cannot be started.
-     */
-    private fun launchRingingActivityAsFallback() {
-        try {
-            val intent = Intent(this, RingingActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION)
-                putExtra(EXTRA_FALLBACK_AUDIO_ACTIVE, hasSwitchedToFallbackAudio)
-            }
-            startActivity(intent)
-        } catch (t: Throwable) {
-            Log.e(TAG, "launchRingingActivityAsFallback failed", t)
+    private fun bringRingingActivityToFront() {
+        val notification = buildForegroundAlarmNotificationOrNull() ?: return
+        // Re-poster la notification force Android à ré-évaluer le fullScreenIntent
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            manager.notify(AlarmNotification.NOTIFICATION_ID, notification)
         }
     }
 
