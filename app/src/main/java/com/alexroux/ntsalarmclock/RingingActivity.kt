@@ -45,13 +45,13 @@ class RingingActivity : ComponentActivity() {
         // Keep media as the controlled stream while this activity is visible.
         volumeControlStream = AudioManager.STREAM_MUSIC
 
-        // Allow the activity to appear on top of the lock screen
+        // Allow the activity to appear on top of the lock screen.
         setShowWhenLocked(true)
 
-        // Turn the screen on when the alarm triggers
+        // Turn the screen on when the alarm triggers.
         setTurnScreenOn(true)
 
-        // Keep the screen awake while the alarm is ringing
+        // Keep the screen awake while the alarm is ringing.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         updateFallbackStateFromIntent(intent)
@@ -63,25 +63,11 @@ class RingingActivity : ComponentActivity() {
                         isFallbackAudioActive = isFallbackAudioActive,
                         onDismiss = {
                             Log.d(TAG, "onDismiss")
-                            bringToFront()
                         }
                     )
                 }
             }
         }
-    }
-
-    private fun bringToFront() {
-        Log.d(TAG, "bringToFront")
-
-        val intent = Intent(this, RingingActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            putExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, isFallbackAudioActive)
-        }
-
-        startActivity(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
