@@ -1,0 +1,60 @@
+name: Dev APK (any branch)
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Decode keystore
+        shell: bash
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release.jks
+
+      - name: Create keystore.properties
+        shell: bash
+        run: |
+          cat <<EOF > ${{ github.workspace }}/keystore.properties
+          storeFile=release.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Build release APK
+        env:
+          VERSION_NAME: dev-${{ github.ref_name }}-${{ github.sha }}
+        run: ./gradlew clean assembleRelease
+
+      - name: Rename APK
+        run: mv app/build/outputs/apk/release/app-release.apk NTSAlarmClock-${{ github.ref_name }}.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ github.ref_name }}
+          path: NTSAlarmClock-${{ github.ref_name }}.apk
