@@ -154,6 +154,8 @@ class PlaybackService : Service() {
             return
         }
 
+        launchRingingActivityAsFallback()
+
         startPlayback()
     }
 
