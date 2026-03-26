@@ -47,7 +47,8 @@
             android:name=".RingingActivity"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:launchMode="singleTask"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             tools:ignore="UnusedAttribute" />
