@@ -3,8 +3,6 @@ package com.alexroux.ntsalarmclock
 import android.content.Intent
 import android.media.AudioManager
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 import android.view.WindowManager
@@ -35,8 +33,6 @@ class RingingActivity : ComponentActivity() {
     }
 
     private var isFallbackAudioActive by mutableStateOf(false)
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private var relaunchScheduled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +63,7 @@ class RingingActivity : ComponentActivity() {
                         isFallbackAudioActive = isFallbackAudioActive,
                         onDismiss = {
                             Log.d(TAG, "onDismiss")
+                            finish()
                         }
                     )
                 }
@@ -86,24 +83,23 @@ class RingingActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        Log.d(TAG, "onUserLeaveHint")
-        scheduleBringToFront()
+        val intent = Intent(this, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_BRING_TO_FRONT
+        }
+        startService(intent)
     }
 
     override fun onStop() {
         super.onStop()
-        Log.d(
-            TAG,
-            "onStop: isFinishing=$isFinishing, isChangingConfigurations=$isChangingConfigurations"
-        )
-
         if (!isFinishing && !isChangingConfigurations) {
-            scheduleBringToFront()
+            val intent = Intent(this, PlaybackService::class.java).apply {
+                action = PlaybackService.ACTION_BRING_TO_FRONT
+            }
+            startService(intent)
         }
     }
 
     override fun onDestroy() {
-        mainHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
@@ -135,40 +131,6 @@ class RingingActivity : ComponentActivity() {
         ) ?: false
 
         Log.d(TAG, "updateFallbackStateFromIntent: isFallbackAudioActive=$isFallbackAudioActive")
-    }
-
-    /**
-     * Brings the ringing activity back to the foreground when the system
-     * tries to send it behind the launcher during unlock / home-like flows.
-     */
-    private fun scheduleBringToFront() {
-        if (relaunchScheduled) {
-            return
-        }
-
-        relaunchScheduled = true
-
-        mainHandler.post {
-            relaunchScheduled = false
-
-            if (isFinishing || isDestroyed) {
-                return@post
-            }
-
-            Log.d(TAG, "scheduleBringToFront: restarting RingingActivity")
-
-            val intent = Intent(this, RingingActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra(
-                    PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE,
-                    isFallbackAudioActive
-                )
-            }
-
-            startActivity(intent)
-        }
     }
 
     /**
