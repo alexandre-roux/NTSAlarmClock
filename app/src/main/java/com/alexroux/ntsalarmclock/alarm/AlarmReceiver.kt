@@ -25,7 +25,6 @@ import kotlinx.coroutines.withContext
  * Responsibilities:
  * - Wake up the app when the alarm fires
  * - Check that notifications are allowed before starting audio playback
- * - Show the alarm notification / UI
  * - Start alarm playback in the foreground service
  * - Re-schedule the next occurrence only for recurring alarms
  * - Disable one-shot alarms after they have fired
@@ -62,13 +61,12 @@ open class AlarmReceiver : BroadcastReceiver() {
                     if (!areNotificationsAllowed(context)) {
                         Log.e(
                             TAG,
-                            "Notifications are not allowed — skipping playback service start. " +
+                            "Notifications are not allowed, skipping playback service start. " +
                                     "The alarm fired but the user will not hear it."
                         )
                         return@withContext
                     }
 
-                    showAlarmNotification(context)
                     startPlaybackService(context)
                 }
 
@@ -164,19 +162,6 @@ open class AlarmReceiver : BroadcastReceiver() {
         return powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "${context.packageName}:alarm_receiver"
-        )
-    }
-
-    protected open fun showAlarmNotification(context: Context) {
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        val notification =
-            AlarmNotification.buildAlarmNotification(context).build()
-
-        notificationManager.notify(
-            AlarmNotification.NOTIFICATION_ID,
-            notification
         )
     }
 

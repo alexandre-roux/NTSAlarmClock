@@ -3,6 +3,7 @@ package com.alexroux.ntsalarmclock
 import android.content.Intent
 import android.media.AudioManager
 import android.os.Bundle
+import android.util.Log
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -27,10 +28,19 @@ import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
  */
 class RingingActivity : ComponentActivity() {
 
+    companion object {
+        private const val TAG = "RingingActivity"
+    }
+
     private var isFallbackAudioActive by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Log.d(
+            TAG,
+            "onCreate: intent=$intent, fallback=${intent?.getBooleanExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, false)}"
+        )
 
         // Keep media as the controlled stream while this activity is visible.
         volumeControlStream = AudioManager.STREAM_MUSIC
@@ -52,6 +62,7 @@ class RingingActivity : ComponentActivity() {
                     RingScreen(
                         isFallbackAudioActive = isFallbackAudioActive,
                         onDismiss = {
+                            Log.d(TAG, "onDismiss")
                             // Stop playback and close the ringing screen.
                             stopAlarmService()
                             finish()
@@ -64,11 +75,17 @@ class RingingActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        Log.d(
+            TAG,
+            "onNewIntent: intent=$intent, fallback=${intent.getBooleanExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, false)}"
+        )
         setIntent(intent)
         updateFallbackStateFromIntent(intent)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        Log.d(TAG, "onKeyDown: keyCode=$keyCode")
+
         return when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 sendVolumeAction(PlaybackService.ACTION_VOLUME_UP)
@@ -92,12 +109,15 @@ class RingingActivity : ComponentActivity() {
             PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE,
             false
         ) ?: false
+
+        Log.d(TAG, "updateFallbackStateFromIntent: isFallbackAudioActive=$isFallbackAudioActive")
     }
 
     /**
      * Sends a command to the playback service to stop the alarm sound.
      */
     private fun stopAlarmService() {
+        Log.d(TAG, "stopAlarmService")
         val intent = Intent(this, PlaybackService::class.java).apply {
             action = PlaybackService.ACTION_STOP_ALARM
         }
@@ -108,6 +128,7 @@ class RingingActivity : ComponentActivity() {
      * Sends a volume adjustment command to the playback service.
      */
     private fun sendVolumeAction(action: String) {
+        Log.d(TAG, "sendVolumeAction: action=$action")
         val intent = Intent(this, PlaybackService::class.java).apply {
             this.action = action
         }

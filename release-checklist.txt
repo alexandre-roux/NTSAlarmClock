@@ -1,10 +1,7 @@
-1. Commit changes
 git add .
-git commit -m "Prepare release v1.0.0"
+git commit -m "Prepare release v1.2.0"
 
-2. Create tag
-git tag -a v1.0.0 -m "message"
+git tag -a v1.2.0 -m "Release v1.2.0"
 
-3. Push code and tag
 git push origin main
-git push origin v1.0.0
+git push origin v1.2.0
