@@ -56,6 +56,8 @@ class PlaybackService : Service() {
         const val ACTION_STOP_ALARM = "com.alexroux.ntsalarmclock.playback.action.STOP_ALARM"
         const val ACTION_VOLUME_UP = "com.alexroux.ntsalarmclock.playback.action.VOLUME_UP"
         const val ACTION_VOLUME_DOWN = "com.alexroux.ntsalarmclock.playback.action.VOLUME_DOWN"
+        const val ACTION_SET_VOLUME = "com.alexroux.ntsalarmclock.playback.action.SET_VOLUME"
+        const val EXTRA_VOLUME = "extra_volume"
     }
 
     // Player instance used to stream the alarm audio.
@@ -102,6 +104,11 @@ class PlaybackService : Service() {
             ACTION_STOP_ALARM -> stopAlarm()
             ACTION_VOLUME_UP -> adjustTemporaryVolumeBy(MANUAL_VOLUME_STEP)
             ACTION_VOLUME_DOWN -> adjustTemporaryVolumeBy(-MANUAL_VOLUME_STEP)
+            ACTION_SET_VOLUME -> {
+                val volume = intent.getIntExtra(EXTRA_VOLUME, 70)
+                setAbsoluteVolume(volume)
+            }
+
             else -> Unit
         }
 
@@ -272,10 +279,33 @@ class PlaybackService : Service() {
     }
 
     /**
-     * Adjusts the current alarm volume temporarily without persisting it.
-     *
-     * Manual user control takes priority over progressive volume, so any in-progress
-     * automatic ramp is stopped as soon as a hardware volume button is used.
+     * Sets an absolute volume from the UI slider and persists it.
+     */
+    private fun setAbsoluteVolume(volume: Int) {
+        val currentPlayer = player ?: return
+
+        val sanitizedVolume = volume.coerceIn(0, 100)
+        val normalized = sanitizedVolume / 100f
+
+        progressiveVolumeJob?.cancel()
+        progressiveVolumeJob = null
+        progressiveVolumeEnabled = false
+
+        currentPlayer.volume = normalized
+        targetVolume = normalized
+
+        serviceScope.launch {
+            val repository =
+                DataStoreAlarmSettingsRepository(applicationContext.alarmSettingsDataStore)
+            repository.setVolume(sanitizedVolume)
+        }
+
+        Log.d(TAG, "Absolute volume set: $normalized")
+    }
+
+    /**
+     * Adjusts the current volume from hardware volume buttons and persists it
+     * so the ringing UI slider stays in sync.
      */
     private fun adjustTemporaryVolumeBy(delta: Float) {
         val currentPlayer = player ?: return
@@ -287,6 +317,13 @@ class PlaybackService : Service() {
         val updatedVolume = (currentPlayer.volume + delta).coerceIn(0f, 1f)
         currentPlayer.volume = updatedVolume
         targetVolume = updatedVolume
+
+        serviceScope.launch {
+            val repository =
+                DataStoreAlarmSettingsRepository(applicationContext.alarmSettingsDataStore)
+            val volumeInt = (updatedVolume * 100).toInt()
+            repository.setVolume(volumeInt)
+        }
 
         Log.d(TAG, "Manual volume change applied: volume=$updatedVolume")
     }
@@ -397,8 +434,7 @@ class PlaybackService : Service() {
     private fun createNotificationChannelIfNeeded() {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
-        val existing = manager.getNotificationChannel(AlarmNotification.CHANNEL_ID)
-        if (existing != null) return
+        if (manager.getNotificationChannel(AlarmNotification.CHANNEL_ID) != null) return
 
         val channel = NotificationChannel(
             AlarmNotification.CHANNEL_ID,

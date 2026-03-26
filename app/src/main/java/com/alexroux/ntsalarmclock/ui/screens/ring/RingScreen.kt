@@ -22,15 +22,17 @@ import androidx.core.text.HtmlCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.NTSButton
+import com.alexroux.ntsalarmclock.ui.components.VolumeSlider
 import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 
 /**
  * Screen displayed when the alarm is ringing.
  *
- * This composable shows a minimal UI with a message and a button
- * allowing the user to stop the alarm. When the button is pressed:
- * - the ViewModel stops the alarm playback
- * - the screen is dismissed via [onDismiss]
+ * This composable shows the current alarm UI with:
+ * - the ringing message
+ * - the currently playing show when available
+ * - a volume slider
+ * - a button allowing the user to stop the alarm
  */
 @Composable
 fun RingScreen(
@@ -39,10 +41,14 @@ fun RingScreen(
     viewModel: RingScreenViewModel = viewModel()
 ) {
     val currentShow by viewModel.currentShow.collectAsState()
+    val volumeLive by viewModel.volumeLive.collectAsState()
 
     RingScreenContent(
         isFallbackAudioActive = isFallbackAudioActive,
         currentShow = currentShow,
+        volumeLive = volumeLive,
+        onVolumeLiveChange = viewModel::onVolumeLiveChange,
+        onVolumeChangeFinished = viewModel::onVolumeChangeFinished,
         onStopClick = {
             viewModel.stopAlarm()
             onDismiss()
@@ -54,6 +60,9 @@ fun RingScreen(
 fun RingScreenContent(
     isFallbackAudioActive: Boolean,
     currentShow: String?,
+    volumeLive: Int,
+    onVolumeLiveChange: (Int) -> Unit,
+    onVolumeChangeFinished: (Int) -> Unit,
     onStopClick: () -> Unit
 ) {
     val decodedCurrentShow = if (!currentShow.isNullOrBlank()) {
@@ -99,6 +108,19 @@ fun RingScreenContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        Text(
+            text = stringResource(R.string.volume),
+            style = MaterialTheme.typography.headlineLarge
+        )
+
+        VolumeSlider(
+            volumeLive = volumeLive,
+            onVolumeLiveChange = onVolumeLiveChange,
+            onVolumeChangeFinished = onVolumeChangeFinished
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         NTSButton(
             text = "STOP",
             textStyle = MaterialTheme.typography.displayLarge,
@@ -115,6 +137,9 @@ fun RingScreenPreview() {
             RingScreenContent(
                 isFallbackAudioActive = true,
                 currentShow = "Breakfast Show",
+                volumeLive = 70,
+                onVolumeLiveChange = {},
+                onVolumeChangeFinished = {},
                 onStopClick = {}
             )
         }
