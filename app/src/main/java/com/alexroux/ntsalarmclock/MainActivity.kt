@@ -15,7 +15,9 @@ import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
  */
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: HomeScreenViewModel by viewModels()
+    private val viewModel: HomeScreenViewModel by viewModels {
+        HomeScreenViewModel.factory(application)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

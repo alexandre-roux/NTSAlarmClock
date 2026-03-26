@@ -32,8 +32,8 @@ fun CyclicTimePicker(
     onTimeChange: (Int, Int) -> Unit
 ) {
     // Create large cyclic lists so the wheel appears infinite
-    val hours = remember { List(24 * 400) { it % 24 } }
-    val minutes = remember { List(60 * 400) { it % 60 } }
+    val hours = remember { List(24 * 100) { it % 24 } }
+    val minutes = remember { List(60 * 100) { it % 60 } }
 
     // Cache the displayed strings to avoid recreating large lists on every recomposition
     val hourTexts = remember { hours.map { it.toString().padStart(2, '0') } }
