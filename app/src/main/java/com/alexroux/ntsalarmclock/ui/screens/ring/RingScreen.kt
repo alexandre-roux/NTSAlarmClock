@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.NTSButton
@@ -55,6 +56,15 @@ fun RingScreenContent(
     currentShow: String?,
     onStopClick: () -> Unit
 ) {
+    val decodedCurrentShow = if (!currentShow.isNullOrBlank()) {
+        HtmlCompat.fromHtml(
+            currentShow,
+            HtmlCompat.FROM_HTML_MODE_LEGACY
+        ).toString()
+    } else {
+        null
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -69,9 +79,9 @@ fun RingScreenContent(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (!currentShow.isNullOrBlank()) {
+        if (!decodedCurrentShow.isNullOrBlank()) {
             Text(
-                text = stringResource(R.string.currently_playing) + currentShow,
+                text = stringResource(R.string.currently_playing) + decodedCurrentShow,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary,
                 textAlign = TextAlign.Center,
