@@ -11,20 +11,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.alexroux.ntsalarmclock.R
-import dev.vivvvek.seeker.Seeker
-import dev.vivvvek.seeker.SeekerDefaults
-import kotlin.math.roundToInt
+import com.alexroux.ntsalarmclock.ui.components.VolumeSlider
 
 /**
  * Section of the Home screen that controls the playback preview volume.
@@ -32,14 +25,6 @@ import kotlin.math.roundToInt
  * It provides:
  * - a play/pause button to start or stop the NTS stream preview
  * - a slider allowing the user to adjust the alarm volume (0-100)
- *
- * The slider internally uses a Float because the Seeker component requires it,
- * while the application state uses an Int percentage. The local UI state
- * (volumeUi) acts as an adapter between both representations.
- *
- * Live changes update the playback volume immediately, while
- * [onVolumeChangeFinished] is triggered when the user finishes dragging
- * to persist the new volume value.
  */
 @Composable
 fun HomeVolumeSection(
@@ -67,36 +52,10 @@ fun HomeVolumeSection(
                 )
             }
 
-            // Seeker uses Float, app state uses Int percent
-            var volumeUi by remember { mutableFloatStateOf(volumeLive.toFloat()) }
-
-            // Keep UI thumb in sync with live volume updates
-            LaunchedEffect(volumeLive) {
-                volumeUi = volumeLive.toFloat()
-            }
-
-            Seeker(
-                value = volumeUi,
-                range = 0f..100f,
-                onValueChange = { newValue ->
-                    volumeUi = newValue
-                    onVolumeLiveChange(newValue.roundToInt())
-                },
-                onValueChangeFinished = {
-                    onVolumeChangeFinished(volumeUi.roundToInt())
-                },
-                colors = SeekerDefaults.seekerColors(
-                    progressColor = Color.White,
-                    trackColor = Color(0xFF6B6B6B),
-                    thumbColor = Color.White,
-                    readAheadColor = Color(0xFF6B6B6B)
-                ),
-                dimensions = SeekerDefaults.seekerDimensions(
-                    trackHeight = 6.dp,
-                    progressHeight = 6.dp,
-                    thumbRadius = 10.dp,
-                    gap = 0.dp
-                )
+            VolumeSlider(
+                volumeLive = volumeLive,
+                onVolumeLiveChange = onVolumeLiveChange,
+                onVolumeChangeFinished = onVolumeChangeFinished
             )
         }
     }

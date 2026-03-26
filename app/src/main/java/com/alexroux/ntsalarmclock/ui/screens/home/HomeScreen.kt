@@ -1,5 +1,6 @@
 package com.alexroux.ntsalarmclock.ui.screens.home
 
+import android.app.Application
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -14,10 +15,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
  * Main screen of the application where the user configures the alarm.
@@ -32,7 +35,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  */
 @Composable
 fun HomeScreen(
-    viewModel: HomeScreenViewModel
+    viewModel: HomeScreenViewModel = viewModel(
+        factory = HomeScreenViewModel.factory(
+            application = LocalContext.current.applicationContext as Application
+        )
+    )
 ) {
     val TAG = "HomeScreen"
 
@@ -84,7 +91,6 @@ fun HomeScreen(
 
             /**
              * Synchronize UI volume with the persisted volume coming from DataStore.
-             *
              * This effect avoids overwriting the slider while the user is dragging it
              * and prevents visual jumps while waiting for the repository to confirm
              * a persisted volume change.

@@ -4,8 +4,10 @@ import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.PowerManager
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.DataStoreAlarmSettingsRepository
@@ -22,6 +24,7 @@ import kotlinx.coroutines.withContext
  *
  * Responsibilities:
  * - Wake up the app when the alarm fires
+ * - Check that notifications are allowed before starting audio playback
  * - Show the alarm notification / UI
  * - Start alarm playback in the foreground service
  * - Re-schedule the next occurrence only for recurring alarms
@@ -51,8 +54,20 @@ open class AlarmReceiver : BroadcastReceiver() {
                             "progressiveVolume=${settings.progressiveVolume}"
                 )
 
-                // Show the alarm entry point for the user and start playback immediately.
                 withContext(Dispatchers.Main) {
+                    /**
+                     * Check notification permissions before attempting to start the
+                     * foreground service.
+                     */
+                    if (!areNotificationsAllowed(context)) {
+                        Log.e(
+                            TAG,
+                            "Notifications are not allowed — skipping playback service start. " +
+                                    "The alarm fired but the user will not hear it."
+                        )
+                        return@withContext
+                    }
+
                     showAlarmNotification(context)
                     startPlaybackService(context)
                 }
@@ -98,6 +113,34 @@ open class AlarmReceiver : BroadcastReceiver() {
                 pendingResult.finish()
             }
         }
+    }
+
+    /**
+     * Returns true if the app is allowed to post notifications.
+     */
+    protected open fun areNotificationsAllowed(context: Context): Boolean {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            return false
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+            if (!granted) return false
+        }
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = manager.getNotificationChannel(AlarmNotification.CHANNEL_ID)
+
+        if (channel != null && channel.importance == NotificationManager.IMPORTANCE_NONE) {
+            Log.w(TAG, "Alarm notification channel is blocked by the user")
+            return false
+        }
+
+        return true
     }
 
     protected open fun createRepository(context: Context): AlarmSettingsRepository {

@@ -1,11 +1,9 @@
 package com.alexroux.ntsalarmclock.playback
 
 import android.content.Context
-import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 
@@ -20,7 +18,7 @@ object NTSPlayerFactory {
     /**
      * Creates a new ExoPlayer instance configured for alarm playback.
      */
-    fun create(context: Context, tag: String = "NTSPlayer"): ExoPlayer {
+    fun create(context: Context): ExoPlayer {
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(C.USAGE_ALARM)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -32,22 +30,6 @@ object NTSPlayerFactory {
             // Automatic audio focus handling is not compatible with USAGE_ALARM
             // so we disable it
             setAudioAttributes(audioAttributes, false)
-
-            addListener(
-                object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
-                        Log.d(tag, "state=$playbackState")
-                    }
-
-                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        Log.d(tag, "isPlaying=$isPlaying")
-                    }
-
-                    override fun onPlayerError(error: PlaybackException) {
-                        Log.e(tag, "playerError", error)
-                    }
-                }
-            )
         }
     }
 

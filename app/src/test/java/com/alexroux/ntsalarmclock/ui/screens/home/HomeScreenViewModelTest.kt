@@ -1,6 +1,5 @@
 package com.alexroux.ntsalarmclock.ui.screens.home
 
-import android.app.Application
 import android.util.Log
 import com.alexroux.ntsalarmclock.alarm.AlarmScheduler
 import com.alexroux.ntsalarmclock.data.AlarmSettings
@@ -35,7 +34,6 @@ class HomeScreenViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val repository = mockk<AlarmSettingsRepository>(relaxed = true)
     private val alarmScheduler = mockk<AlarmScheduler>(relaxed = true)
-    private val application = mockk<Application>(relaxed = true)
 
     private val settingsFlow = MutableStateFlow(
         AlarmSettings(
@@ -83,6 +81,7 @@ class HomeScreenViewModelTest {
         assertEquals(emptySet<DayOfWeekUi>(), state.enabledDays)
         assertEquals(false, state.progressiveVolume)
         assertEquals(NTS_STREAM_URL, state.streamUrl)
+        assertEquals("Alarm is disabled", state.scheduledInText)
 
         job.cancel()
     }
@@ -115,6 +114,16 @@ class HomeScreenViewModelTest {
 
         coVerify(exactly = 1) { repository.setEnabled(true) }
         job.cancel()
+    }
+
+    @Test
+    fun onEnabledChange_doesNothing_whileLoading() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.onEnabledChange()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { repository.setEnabled(any()) }
     }
 
     @Test
@@ -339,6 +348,23 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun identicalScheduleConfig_doesNotRescheduleAlarmAgain() = runTest {
+        settingsFlow.value = settingsFlow.value.copy(enabled = true)
+
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch { viewModel.uiState.collect() }
+
+        advanceUntilIdle()
+        clearMocks(repository, alarmScheduler)
+
+        settingsFlow.value = settingsFlow.value.copy(volume = 50)
+        advanceUntilIdle()
+
+        confirmVerified(alarmScheduler)
+        job.cancel()
+    }
+
+    @Test
     fun changingTime_reschedulesAlarm_whenEnabled() = runTest {
         settingsFlow.value = settingsFlow.value.copy(enabled = true)
 
@@ -388,7 +414,6 @@ class HomeScreenViewModelTest {
 
     private fun createViewModel(): HomeScreenViewModel {
         return HomeScreenViewModel(
-            application = application,
             repository = repository,
             alarmScheduler = alarmScheduler
         )

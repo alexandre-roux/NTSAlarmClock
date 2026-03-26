@@ -61,4 +61,26 @@ class PlaybackServiceLogicTest {
 
         assertEquals(0.5f, nextVolume)
     }
+
+    @Test
+    fun nextProgressiveVolumeStep_returnsTarget_whenStepCountIsZero() {
+        val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
+            currentVolume = 0.1f,
+            targetVolume = 0.8f,
+            stepCount = 0
+        )
+
+        assertEquals(0.8f, nextVolume)
+    }
+
+    @Test
+    fun nextProgressiveVolumeStep_returnsTarget_whenStepCountIsNegative() {
+        val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
+            currentVolume = 0.1f,
+            targetVolume = 0.8f,
+            stepCount = -5
+        )
+
+        assertEquals(0.8f, nextVolume)
+    }
 }

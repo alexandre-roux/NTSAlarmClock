@@ -13,5 +13,5 @@ enum class DayOfWeekUi(val shortLabel: String) {
     TH("Th"),
     FR("Fr"),
     SA("Sa"),
-    SU("So"),
+    SU("Su"),
 }

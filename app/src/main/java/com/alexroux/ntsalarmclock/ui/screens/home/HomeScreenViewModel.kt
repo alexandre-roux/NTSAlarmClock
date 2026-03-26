@@ -2,7 +2,8 @@ package com.alexroux.ntsalarmclock.ui.screens.home
 
 import android.app.Application
 import android.util.Log
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.alexroux.ntsalarmclock.alarm.AlarmScheduler
 import com.alexroux.ntsalarmclock.alarm.NextAlarmCalculator
@@ -43,7 +44,6 @@ sealed interface HomeScreenUiState {
 /**
  * Minimal scheduling model containing only the fields that impact
  * alarm planning.
- *
  * Volume and progressive volume are intentionally excluded because
  * they do not affect when the next alarm should ring.
  */
@@ -54,17 +54,13 @@ data class AlarmScheduleConfig(
     val enabledDays: Set<DayOfWeekUi>
 )
 
-class HomeScreenViewModel @JvmOverloads constructor(
-    application: Application,
-    private val repository: AlarmSettingsRepository =
-        DataStoreAlarmSettingsRepository(application.alarmSettingsDataStore),
-    private val alarmScheduler: AlarmScheduler =
-        AlarmScheduler(application)
-) : AndroidViewModel(application) {
+class HomeScreenViewModel(
+    private val repository: AlarmSettingsRepository,
+    private val alarmScheduler: AlarmScheduler
+) : ViewModel() {
 
     /**
      * Full UI state used by the screen.
-     *
      * The screen stays in Loading until the first DataStore value is received.
      * Once preferences are available, the UI switches to Success.
      */
@@ -79,7 +75,6 @@ class HomeScreenViewModel @JvmOverloads constructor(
 
     /**
      * Dedicated flow for scheduling logic.
-     *
      * Only values that matter for alarm planning are observed here.
      * distinctUntilChanged prevents unnecessary re-scheduling when
      * unrelated settings change, such as volume.
@@ -167,7 +162,6 @@ class HomeScreenViewModel @JvmOverloads constructor(
 
     /**
      * Update the selected volume.
-     *
      * This does not trigger re-scheduling because volume is not part
      * of AlarmScheduleConfig.
      */
@@ -193,7 +187,6 @@ class HomeScreenViewModel @JvmOverloads constructor(
 
     /**
      * Update the progressive volume preference.
-     *
      * This does not trigger re-scheduling because it does not change
      * when the next alarm should ring.
      */
@@ -205,7 +198,6 @@ class HomeScreenViewModel @JvmOverloads constructor(
 
     /**
      * Run a block only when the current UI state is Success.
-     *
      * This avoids repeating the same cast-and-return pattern in every action.
      */
     private inline fun withSuccessState(block: (HomeScreenUiState.Success) -> Unit) {
@@ -241,5 +233,30 @@ class HomeScreenViewModel @JvmOverloads constructor(
                 enabledDays = enabledDays
             )
         )
+    }
+
+    companion object {
+        /**
+         * Manual factory used to keep the current architecture simple
+         * while removing the AndroidViewModel dependency.
+         */
+        fun factory(application: Application): ViewModelProvider.Factory {
+            val repository = DataStoreAlarmSettingsRepository(application.alarmSettingsDataStore)
+            val alarmScheduler = AlarmScheduler(application)
+
+            return object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    if (modelClass.isAssignableFrom(HomeScreenViewModel::class.java)) {
+                        return HomeScreenViewModel(
+                            repository = repository,
+                            alarmScheduler = alarmScheduler
+                        ) as T
+                    }
+
+                    throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+                }
+            }
+        }
     }
 }
