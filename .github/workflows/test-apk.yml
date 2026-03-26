@@ -48,7 +48,7 @@ jobs:
       - name: Build release APK
         env:
           VERSION_NAME: dev-${{ github.ref_name }}-${{ github.sha }}
-        run: ./gradlew clean assembleRelease
+        run: ./gradlew assembleRelease
 
       - name: Rename APK
         run: mv app/build/outputs/apk/release/app-release.apk NTSAlarmClock-${{ github.ref_name }}.apk

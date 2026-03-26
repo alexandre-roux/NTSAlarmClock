@@ -63,14 +63,25 @@ class RingingActivity : ComponentActivity() {
                         isFallbackAudioActive = isFallbackAudioActive,
                         onDismiss = {
                             Log.d(TAG, "onDismiss")
-                            // Stop playback and close the ringing screen.
-                            stopAlarmService()
-                            finish()
+                            bringToFront()
                         }
                     )
                 }
             }
         }
+    }
+
+    private fun bringToFront() {
+        Log.d(TAG, "bringToFront")
+
+        val intent = Intent(this, RingingActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, isFallbackAudioActive)
+        }
+
+        startActivity(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -111,17 +122,6 @@ class RingingActivity : ComponentActivity() {
         ) ?: false
 
         Log.d(TAG, "updateFallbackStateFromIntent: isFallbackAudioActive=$isFallbackAudioActive")
-    }
-
-    /**
-     * Sends a command to the playback service to stop the alarm sound.
-     */
-    private fun stopAlarmService() {
-        Log.d(TAG, "stopAlarmService")
-        val intent = Intent(this, PlaybackService::class.java).apply {
-            action = PlaybackService.ACTION_STOP_ALARM
-        }
-        startService(intent)
     }
 
     /**
