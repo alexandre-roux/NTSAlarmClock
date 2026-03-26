@@ -37,6 +37,8 @@ class RingingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        Log.e("RINGING_DEBUG", "VERSION FIXED ON_CREATE")
+
         Log.d(
             TAG,
             "onCreate: intent=$intent, fallback=${intent?.getBooleanExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, false)}"
