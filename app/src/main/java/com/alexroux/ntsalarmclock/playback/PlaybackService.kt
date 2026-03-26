@@ -205,8 +205,7 @@ class PlaybackService : Service() {
             hasSwitchedToFallbackAudio = false
 
             val currentPlayer = player ?: NTSPlayerFactory.create(
-                context = this@PlaybackService,
-                tag = TAG
+                context = this@PlaybackService
             ).also {
                 it.addListener(playerListener)
                 player = it
