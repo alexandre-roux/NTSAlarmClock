@@ -8,9 +8,9 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import com.alexroux.ntsalarmclock.playback.AlarmPlaybackState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.alexroux.ntsalarmclock.playback.PlaybackService
 import com.alexroux.ntsalarmclock.ui.screens.ring.RingScreen
 import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
@@ -27,6 +27,8 @@ import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
  */
 class RingingActivity : ComponentActivity() {
 
+    private var isFallbackAudioActive by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -42,15 +44,15 @@ class RingingActivity : ComponentActivity() {
         // Keep the screen awake while the alarm is ringing
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        setContent {
-            val isFallbackAudioActive by AlarmPlaybackState.isFallbackAudioActive.collectAsState()
+        updateFallbackStateFromIntent(intent)
 
+        setContent {
             NTSAlarmClockTheme {
                 Surface {
                     RingScreen(
                         isFallbackAudioActive = isFallbackAudioActive,
                         onDismiss = {
-                            // Stop playback and close the ringing screen
+                            // Stop playback and close the ringing screen.
                             stopAlarmService()
                             finish()
                         }
@@ -58,6 +60,12 @@ class RingingActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        updateFallbackStateFromIntent(intent)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -74,6 +82,16 @@ class RingingActivity : ComponentActivity() {
 
             else -> super.onKeyDown(keyCode, event)
         }
+    }
+
+    /**
+     * Updates the UI state from the activity intent.
+     */
+    private fun updateFallbackStateFromIntent(intent: Intent?) {
+        isFallbackAudioActive = intent?.getBooleanExtra(
+            PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE,
+            false
+        ) ?: false
     }
 
     /**

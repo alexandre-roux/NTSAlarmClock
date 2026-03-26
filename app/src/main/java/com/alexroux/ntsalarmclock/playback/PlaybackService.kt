@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -58,6 +59,7 @@ class PlaybackService : Service() {
         const val ACTION_VOLUME_DOWN = "com.alexroux.ntsalarmclock.playback.action.VOLUME_DOWN"
         const val ACTION_SET_VOLUME = "com.alexroux.ntsalarmclock.playback.action.SET_VOLUME"
         const val EXTRA_VOLUME = "extra_volume"
+        const val EXTRA_FALLBACK_AUDIO_ACTIVE = "extra_fallback_audio_active"
     }
 
     // Player instance used to stream the alarm audio.
@@ -79,6 +81,7 @@ class PlaybackService : Service() {
     private var progressiveVolumeEnabled: Boolean = false
 
     private val playerListener = object : Player.Listener {
+        @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
         override fun onPlayerError(error: PlaybackException) {
             Log.e(TAG, "Player error while playing alarm audio", error)
             switchToFallbackAudioIfNeeded()
@@ -124,7 +127,8 @@ class PlaybackService : Service() {
 
         val notification = buildForegroundAlarmNotificationOrNull()
         if (notification == null) {
-            Log.e(TAG, "Notification build failed, stopping service")
+            Log.e(TAG, "Notification build failed, launching RingingActivity as fallback")
+            launchRingingActivityAsFallback()
             stopSelf()
             return
         }
@@ -144,12 +148,31 @@ class PlaybackService : Service() {
                 fgsType
             )
         } catch (t: Throwable) {
-            Log.e(TAG, "startForeground failed", t)
+            Log.e(TAG, "startForeground failed, launching RingingActivity as fallback", t)
+            launchRingingActivityAsFallback()
             stopSelf()
             return
         }
 
         startPlayback()
+    }
+
+    /**
+     * Launches RingingActivity directly as a last resort fallback when the
+     * foreground service cannot be started.
+     */
+    private fun launchRingingActivityAsFallback() {
+        try {
+            val intent = Intent(this, RingingActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra(EXTRA_FALLBACK_AUDIO_ACTIVE, hasSwitchedToFallbackAudio)
+            }
+            startActivity(intent)
+        } catch (t: Throwable) {
+            Log.e(TAG, "launchRingingActivityAsFallback failed", t)
+        }
     }
 
     /**
@@ -180,7 +203,6 @@ class PlaybackService : Service() {
             targetVolume = settings.volume.coerceIn(0, 100) / 100f
             progressiveVolumeEnabled = settings.progressiveVolume
             hasSwitchedToFallbackAudio = false
-            AlarmPlaybackState.setFallbackAudioActive(false)
 
             val currentPlayer = player ?: NTSPlayerFactory.create(
                 context = this@PlaybackService,
@@ -207,7 +229,6 @@ class PlaybackService : Service() {
             )
 
             Log.d(TAG, "after prepare: volume=${currentPlayer.volume}")
-
             currentPlayer.playWhenReady = true
             Log.d(TAG, "after prepare: playWhenReady=${currentPlayer.playWhenReady}")
 
@@ -220,6 +241,7 @@ class PlaybackService : Service() {
     /**
      * Switches to the bundled local audio if the remote stream cannot be played.
      */
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     @OptIn(UnstableApi::class)
     private fun switchToFallbackAudioIfNeeded() {
         if (hasSwitchedToFallbackAudio) {
@@ -233,7 +255,6 @@ class PlaybackService : Service() {
         }
 
         hasSwitchedToFallbackAudio = true
-        AlarmPlaybackState.setFallbackAudioActive(true)
 
         Log.w(TAG, "Switching to fallback audio")
 
@@ -248,6 +269,9 @@ class PlaybackService : Service() {
         currentPlayer.volume = currentVolume
         currentPlayer.prepare()
         currentPlayer.playWhenReady = true
+
+        // Update the foreground notification so the fullscreen intent carries the new state.
+        updateNotificationWithFallbackState()
     }
 
     /**
@@ -335,7 +359,6 @@ class PlaybackService : Service() {
         progressiveVolumeJob?.cancel()
         progressiveVolumeJob = null
 
-        AlarmPlaybackState.setFallbackAudioActive(false)
         hasSwitchedToFallbackAudio = false
 
         player?.runCatching {
@@ -356,6 +379,15 @@ class PlaybackService : Service() {
         return runCatching { buildForegroundAlarmNotification() }
             .onFailure { Log.e(TAG, "buildForegroundAlarmNotification failed", it) }
             .getOrNull()
+    }
+
+    /**
+     * Reposts the foreground notification with the current fallback state.
+     */
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+    private fun updateNotificationWithFallbackState() {
+        val notification = buildForegroundAlarmNotificationOrNull() ?: return
+        NotificationManagerCompat.from(this).notify(AlarmNotification.NOTIFICATION_ID, notification)
     }
 
     /**
@@ -394,6 +426,7 @@ class PlaybackService : Service() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(EXTRA_FALLBACK_AUDIO_ACTIVE, hasSwitchedToFallbackAudio)
         }
 
         val fullScreenPendingIntent = PendingIntent.getActivity(

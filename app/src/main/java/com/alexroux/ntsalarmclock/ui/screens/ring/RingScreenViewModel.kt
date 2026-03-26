@@ -9,7 +9,7 @@ import com.alexroux.ntsalarmclock.alarm.AlarmNotification.NOTIFICATION_ID
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.alarmSettingsDataStore
-import com.alexroux.ntsalarmclock.data.nts.NtsApi
+import com.alexroux.ntsalarmclock.data.nts.NtsNetwork
 import com.alexroux.ntsalarmclock.data.nts.NtsRepository
 import com.alexroux.ntsalarmclock.playback.PlaybackService
 import kotlinx.coroutines.delay
@@ -17,8 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 
 class RingScreenViewModel @JvmOverloads constructor(
     app: Application,
@@ -94,23 +92,19 @@ class RingScreenViewModel @JvmOverloads constructor(
 
     private fun startFetchingCurrentShow() {
         viewModelScope.launch {
-            val repository = createRepository()
+            val ntsRepository = createNtsRepository()
 
             while (true) {
-                _currentShow.value = repository.getCurrentShow()
+                _currentShow.value = ntsRepository.getCurrentShow()
                 delay(60_000)
             }
         }
     }
 
-    // Create the repository used to fetch live show information.
-    private fun createRepository(): NtsRepository {
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://www.nts.live/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val api = retrofit.create(NtsApi::class.java)
-        return NtsRepository(api)
+    /**
+     * Create repository using singleton API instead of recreating Retrofit.
+     */
+    private fun createNtsRepository(): NtsRepository {
+        return NtsRepository(NtsNetwork.api)
     }
 }
