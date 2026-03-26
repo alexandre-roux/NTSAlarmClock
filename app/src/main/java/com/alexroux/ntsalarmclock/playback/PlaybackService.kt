@@ -169,6 +169,7 @@ class PlaybackService : Service() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION)
                 putExtra(EXTRA_FALLBACK_AUDIO_ACTIVE, hasSwitchedToFallbackAudio)
             }
             startActivity(intent)
