@@ -13,11 +13,14 @@ env:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -26,14 +29,11 @@ jobs:
           java-version: 17
           cache: gradle
 
-      - name: Decode keystore
+      - name: Decode keystore and create keystore.properties
         shell: bash
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release.jks
 
-      - name: Create keystore.properties
-        shell: bash
-        run: |
           cat <<EOF > ${{ github.workspace }}/keystore.properties
           storeFile=release.jks
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -47,17 +47,14 @@ jobs:
       - name: Build release APK
         env:
           VERSION_NAME: ${{ github.ref_name }}
-        run: ./gradlew assembleRelease
+        run: ./gradlew :app:assembleRelease --build-cache --configuration-cache --parallel
 
-      - name: Rename APK with version
+      - name: Prepare APK files
+        shell: bash
         run: |
-          VERSION=${GITHUB_REF_NAME}
-          mv app/build/outputs/apk/release/app-release.apk NTSAlarmClock-${VERSION}.apk
-
-      - name: Create "latest" APK alias
-        run: |
-          VERSION=${GITHUB_REF_NAME}
-          cp NTSAlarmClock-${VERSION}.apk NTSAlarmClock-latest.apk
+          VERSION="${GITHUB_REF_NAME}"
+          mv app/build/outputs/apk/release/app-release.apk "NTSAlarmClock-${VERSION}.apk"
+          cp "NTSAlarmClock-${VERSION}.apk" "NTSAlarmClock-latest.apk"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

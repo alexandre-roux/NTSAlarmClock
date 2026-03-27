@@ -12,13 +12,20 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+concurrency:
+  group: dev-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -27,14 +34,11 @@ jobs:
           java-version: 17
           cache: gradle
 
-      - name: Decode keystore
+      - name: Decode keystore and create keystore.properties
         shell: bash
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release.jks
 
-      - name: Create keystore.properties
-        shell: bash
-        run: |
           cat <<EOF > ${{ github.workspace }}/keystore.properties
           storeFile=release.jks
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -48,7 +52,7 @@ jobs:
       - name: Build release APK
         env:
           VERSION_NAME: dev-${{ github.ref_name }}-${{ github.sha }}
-        run: ./gradlew assembleRelease
+        run: ./gradlew :app:assembleRelease --build-cache --configuration-cache --parallel
 
       - name: Rename APK
         run: mv app/build/outputs/apk/release/app-release.apk NTSAlarmClock-${{ github.ref_name }}-${{ github.sha }}.apk
