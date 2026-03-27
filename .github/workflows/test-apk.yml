@@ -48,13 +48,13 @@ jobs:
       - name: Build release APK
         env:
           VERSION_NAME: dev-${{ github.ref_name }}-${{ github.sha }}
-        run: ./gradlew clean assembleRelease
+        run: ./gradlew assembleRelease
 
       - name: Rename APK
-        run: mv app/build/outputs/apk/release/app-release.apk NTSAlarmClock-${{ github.ref_name }}.apk
+        run: mv app/build/outputs/apk/release/app-release.apk NTSAlarmClock-${{ github.ref_name }}-${{ github.sha }}.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ github.ref_name }}
-          path: NTSAlarmClock-${{ github.ref_name }}.apk
+          name: apk-${{ github.ref_name }}-${{ github.sha }}
+          path: NTSAlarmClock-${{ github.ref_name }}-${{ github.sha }}.apk

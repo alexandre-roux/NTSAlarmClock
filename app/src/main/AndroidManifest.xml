@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <uses-permission
         android:name="android.permission.POST_NOTIFICATIONS"
@@ -45,12 +47,12 @@
 
         <activity
             android:name=".RingingActivity"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
             android:excludeFromRecents="true"
             android:exported="false"
-            android:launchMode="singleTask"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
-            tools:ignore="UnusedAttribute" />
+            android:launchMode="singleInstance"
+            android:turnScreenOn="true" />
 
         <receiver
             android:name=".alarm.AlarmReceiver"

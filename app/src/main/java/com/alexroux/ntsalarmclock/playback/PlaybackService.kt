@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresPermission
@@ -58,6 +59,8 @@ class PlaybackService : Service() {
         const val ACTION_VOLUME_UP = "com.alexroux.ntsalarmclock.playback.action.VOLUME_UP"
         const val ACTION_VOLUME_DOWN = "com.alexroux.ntsalarmclock.playback.action.VOLUME_DOWN"
         const val ACTION_SET_VOLUME = "com.alexroux.ntsalarmclock.playback.action.SET_VOLUME"
+        const val ACTION_BRING_TO_FRONT =
+            "com.alexroux.ntsalarmclock.playback.action.BRING_TO_FRONT"
         const val EXTRA_VOLUME = "extra_volume"
         const val EXTRA_FALLBACK_AUDIO_ACTIVE = "extra_fallback_audio_active"
     }
@@ -111,7 +114,7 @@ class PlaybackService : Service() {
                 val volume = intent.getIntExtra(EXTRA_VOLUME, 70)
                 setAbsoluteVolume(volume)
             }
-
+            ACTION_BRING_TO_FRONT -> bringRingingActivityToFront()
             else -> Unit
         }
 
@@ -121,14 +124,18 @@ class PlaybackService : Service() {
 
     /**
      * Promotes the service to the foreground and starts audio playback.
+     *
+     * On some devices the fullScreenIntent is often blocked when the screen
+     * is off and the app is in background. If the SYSTEM_ALERT_WINDOW permission
+     * has been granted by the user, we launch RingingActivity directly via
+     * startActivity() which bypasses the background activity launch restriction.
      */
     private fun startAlarm() {
         Log.d(TAG, "startAlarm")
 
         val notification = buildForegroundAlarmNotificationOrNull()
         if (notification == null) {
-            Log.e(TAG, "Notification build failed, launching RingingActivity as fallback")
-            launchRingingActivityAsFallback()
+            Log.e(TAG, "Notification build failed")
             stopSelf()
             return
         }
@@ -140,7 +147,6 @@ class PlaybackService : Service() {
         }
 
         try {
-            // Move the service to the foreground immediately so Android allows it to keep running.
             ServiceCompat.startForeground(
                 this,
                 AlarmNotification.NOTIFICATION_ID,
@@ -148,20 +154,29 @@ class PlaybackService : Service() {
                 fgsType
             )
         } catch (t: Throwable) {
-            Log.e(TAG, "startForeground failed, launching RingingActivity as fallback", t)
-            launchRingingActivityAsFallback()
+            Log.e(TAG, "startForeground failed", t)
             stopSelf()
             return
+        }
+
+        // On Samsung (and other OEMs), fullScreenIntent is blocked when the screen
+        // is off. If the overlay permission is granted, launch RingingActivity directly.
+        if (Settings.canDrawOverlays(this)) {
+            Log.d(TAG, "startAlarm: overlay permission granted, launching RingingActivity directly")
+            launchRingingActivity()
+        } else {
+            Log.d(TAG, "startAlarm: no overlay permission, relying on fullScreenIntent only")
         }
 
         startPlayback()
     }
 
     /**
-     * Launches RingingActivity directly as a last resort fallback when the
-     * foreground service cannot be started.
+     * Launches RingingActivity directly using the overlay permission.
+     * This is the reliable way to display the alarm UI on some devices
+     * when the screen is off or locked.
      */
-    private fun launchRingingActivityAsFallback() {
+    private fun launchRingingActivity() {
         try {
             val intent = Intent(this, RingingActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -171,7 +186,31 @@ class PlaybackService : Service() {
             }
             startActivity(intent)
         } catch (t: Throwable) {
-            Log.e(TAG, "launchRingingActivityAsFallback failed", t)
+            Log.e(TAG, "launchRingingActivity failed", t)
+        }
+    }
+
+    /**
+     * Re-posts the foreground notification to force Android to re-evaluate
+     * the fullScreenIntent, which brings RingingActivity back to the front.
+     * Called when RingingActivity goes to the background unexpectedly
+     */
+    private fun bringRingingActivityToFront() {
+        Log.d(TAG, "bringRingingActivityToFront")
+
+        // If overlay permission is available, just relaunch directly — more reliable.
+        if (Settings.canDrawOverlays(this)) {
+            launchRingingActivity()
+            return
+        }
+
+        // Fallback: re-post the notification so its fullScreenIntent fires again.
+        val notification = buildForegroundAlarmNotificationOrNull() ?: return
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            manager.notify(AlarmNotification.NOTIFICATION_ID, notification)
         }
     }
 

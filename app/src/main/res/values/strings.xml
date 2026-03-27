@@ -15,4 +15,7 @@
     <string name="alarm_ringing">TIME TO TUNE IN!</string>
     <string name="offline_fallback_music_message">This backup music is playing because NTS cannot be played. Maybe your internet is disabled?</string>
     <string name="currently_playing">"Currently playing: "</string>
+    <string name="overlay_permission_required">OVERLAY PERMISSION REQUIRED</string>
+    <string name="overlay_permission_explanation">This app needs the overlay permission to show the alarm on the screen</string>
+    <string name="allow_overlay">ALLOW OVERLAY</string>
 </resources>

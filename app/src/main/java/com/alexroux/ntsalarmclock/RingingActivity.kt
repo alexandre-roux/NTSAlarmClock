@@ -45,13 +45,13 @@ class RingingActivity : ComponentActivity() {
         // Keep media as the controlled stream while this activity is visible.
         volumeControlStream = AudioManager.STREAM_MUSIC
 
-        // Allow the activity to appear on top of the lock screen
+        // Allow the activity to appear on top of the lock screen.
         setShowWhenLocked(true)
 
-        // Turn the screen on when the alarm triggers
+        // Turn the screen on when the alarm triggers.
         setTurnScreenOn(true)
 
-        // Keep the screen awake while the alarm is ringing
+        // Keep the screen awake while the alarm is ringing.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         updateFallbackStateFromIntent(intent)
@@ -63,8 +63,6 @@ class RingingActivity : ComponentActivity() {
                         isFallbackAudioActive = isFallbackAudioActive,
                         onDismiss = {
                             Log.d(TAG, "onDismiss")
-                            // Stop playback and close the ringing screen.
-                            stopAlarmService()
                             finish()
                         }
                     )
@@ -81,6 +79,28 @@ class RingingActivity : ComponentActivity() {
         )
         setIntent(intent)
         updateFallbackStateFromIntent(intent)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        val intent = Intent(this, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_BRING_TO_FRONT
+        }
+        startService(intent)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isFinishing && !isChangingConfigurations) {
+            val intent = Intent(this, PlaybackService::class.java).apply {
+                action = PlaybackService.ACTION_BRING_TO_FRONT
+            }
+            startService(intent)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -111,17 +131,6 @@ class RingingActivity : ComponentActivity() {
         ) ?: false
 
         Log.d(TAG, "updateFallbackStateFromIntent: isFallbackAudioActive=$isFallbackAudioActive")
-    }
-
-    /**
-     * Sends a command to the playback service to stop the alarm sound.
-     */
-    private fun stopAlarmService() {
-        Log.d(TAG, "stopAlarmService")
-        val intent = Intent(this, PlaybackService::class.java).apply {
-            action = PlaybackService.ACTION_STOP_ALARM
-        }
-        startService(intent)
     }
 
     /**
