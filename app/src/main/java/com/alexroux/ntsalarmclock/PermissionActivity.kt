@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -39,33 +37,36 @@ import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
  * Activity responsible for requesting the notifications permission
  * and the overlay (SYSTEM_ALERT_WINDOW) permission.
  *
- * On Android 13+ the POST_NOTIFICATIONS permission is required for
- * alarm notifications and full screen intents to work properly.
+ * Step 1 : POST_NOTIFICATIONS (Android 13+)
+ * Step 2 : SYSTEM_ALERT_WINDOW (overlay) — required on some to display
+ *           RingingActivity automatically over the lock screen.
  *
- * The overlay permission is required on some devices to allow
- * RingingActivity to appear automatically over the lock screen when
- * the alarm fires, without any user interaction.
- *
- * This activity is shown only if at least one permission has not yet
- * been granted. Once all permissions are granted, the user is
+ * Once both are granted (or skipped on older API levels), the user is
  * redirected to MainActivity.
  */
 class PermissionActivity : ComponentActivity() {
 
-    // Number of times the user denied the POST_NOTIFICATIONS permission request
+    // Tracks whether the notification permission is granted (observable by Compose).
+    private var notificationsGranted by mutableStateOf(false)
+
+    // Tracks whether the overlay permission is granted (observable by Compose).
+    private var overlayGranted by mutableStateOf(false)
+
+    // Number of times the user denied the POST_NOTIFICATIONS permission request.
     private var deniedCount by mutableIntStateOf(0)
 
-    // Whether we are currently waiting for the overlay permission screen to return
-    private var waitingForOverlayPermission by mutableStateOf(false)
+    // Whether we are currently waiting for the overlay settings screen to return.
+    private var waitingForOverlay = false
 
     /**
      * Launcher used to request the POST_NOTIFICATIONS permission.
-     * If granted we move on to check the overlay permission.
      */
-    private val requestPermissionLauncher =
+    private val requestNotificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
-                checkOverlayPermissionOrProceed()
+                notificationsGranted = true
+                // Immediately proceed if overlay is already granted.
+                if (overlayGranted) goToMainAndFinish()
             } else {
                 deniedCount += 1
             }
@@ -74,8 +75,12 @@ class PermissionActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // If all permissions are already granted, skip this screen entirely
-        if (isNotificationsPermissionGranted() && isOverlayPermissionGranted()) {
+        // Initialise observable states from the current system state.
+        notificationsGranted = checkNotificationsGranted()
+        overlayGranted = checkOverlayGranted()
+
+        // Nothing to ask — go straight to MainActivity.
+        if (notificationsGranted && overlayGranted) {
             goToMainAndFinish()
             return
         }
@@ -83,31 +88,51 @@ class PermissionActivity : ComponentActivity() {
         setContent {
             NTSAlarmClockTheme {
                 Surface {
-                    if (!isNotificationsPermissionGranted()) {
-                        // Step 1 : ask for notification permission
-                        PermissionScreen(
-                            deniedCount = deniedCount,
-                            onAllowClick = { requestNotificationsPermission() },
-                            onOpenSettingsClick = { openAppSettings() }
-                        )
-                    } else {
-                        // Step 2 : ask for overlay permission
-                        OverlayPermissionScreen(
-                            onAllowClick = { openOverlaySettings() }
-                        )
+                    when {
+                        // Step 1 : notification permission not yet granted.
+                        !notificationsGranted -> {
+                            PermissionScreen(
+                                deniedCount = deniedCount,
+                                onAllowClick = { requestNotificationsPermission() },
+                                onOpenSettingsClick = { openAppSettings() }
+                            )
+                        }
+                        // Step 2 : overlay permission not yet granted.
+                        !overlayGranted -> {
+                            OverlayPermissionScreen(
+                                onAllowClick = { openOverlaySettings() }
+                            )
+                        }
                     }
                 }
             }
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+
+        // Refresh both states every time we come back (e.g. from system settings).
+        notificationsGranted = checkNotificationsGranted()
+        overlayGranted = checkOverlayGranted()
+
+        if (waitingForOverlay) {
+            waitingForOverlay = false
+            // Proceed even if the user refused overlay — don't block the app.
+            goToMainAndFinish()
+            return
+        }
+
+        if (notificationsGranted && overlayGranted) {
+            goToMainAndFinish()
+        }
+    }
+
     /**
-     * Compose UI explaining why the notification permission is required.
-     *
-     * If the user denied the permission twice, the system dialog will no
-     * longer appear, so we redirect the user to the app settings instead.
+     * Screens
      */
-    @Composable
+
+    @androidx.compose.runtime.Composable
     fun PermissionScreen(
         deniedCount: Int,
         onAllowClick: () -> Unit,
@@ -120,12 +145,13 @@ class PermissionActivity : ComponentActivity() {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Text(
                 text = stringResource(R.string.notifications_permission_required),
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = stringResource(R.string.this_app_needs_notification_permission_to_work),
@@ -137,15 +163,12 @@ class PermissionActivity : ComponentActivity() {
             Spacer(modifier = Modifier.height(36.dp))
 
             if (deniedCount >= 2) {
-                // After multiple denials the permission dialog may stop appearing,
-                // so we direct the user to the app settings screen.
                 NTSButton(
                     text = stringResource(R.string.open_settings),
                     textStyle = MaterialTheme.typography.headlineMedium,
                     onClick = onOpenSettingsClick
                 )
             } else {
-                // Show the standard permission request button
                 NTSButton(
                     text = stringResource(R.string.allow_notifications),
                     textStyle = MaterialTheme.typography.headlineMedium,
@@ -155,13 +178,7 @@ class PermissionActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Compose UI explaining why the overlay permission is required.
-     *
-     * This permission allows RingingActivity to appear automatically
-     * over the lock screen on some devices when the alarm fires.
-     */
-    @Composable
+    @androidx.compose.runtime.Composable
     fun OverlayPermissionScreen(
         onAllowClick: () -> Unit
     ) {
@@ -172,12 +189,13 @@ class PermissionActivity : ComponentActivity() {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Text(
                 text = stringResource(R.string.overlay_permission_required),
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = stringResource(R.string.overlay_permission_explanation),
@@ -197,114 +215,48 @@ class PermissionActivity : ComponentActivity() {
     }
 
     /**
-     * Preview used by Android Studio to visualize the notification permission screen.
+     *Permission helpers
      */
-    @Preview(showBackground = true)
-    @Composable
-    private fun PermissionScreenPreview() {
-        NTSAlarmClockTheme {
-            Surface(color = MaterialTheme.colorScheme.background) {
-                PermissionScreen(
-                    deniedCount = 2,
-                    onAllowClick = {},
-                    onOpenSettingsClick = {}
-                )
-            }
-        }
-    }
-
-    /**
-     * When returning from the system settings screen we re-check permissions
-     * and continue to MainActivity once everything is granted.
-     */
-    override fun onResume() {
-        super.onResume()
-
-        if (waitingForOverlayPermission) {
-            waitingForOverlayPermission = false
-            // User came back from overlay settings — proceed regardless of the result
-            // so the app is not blocked if the user refuses.
-            goToMainAndFinish()
-            return
-        }
-
-        if (isNotificationsPermissionGranted() && isOverlayPermissionGranted()) {
-            goToMainAndFinish()
-        }
-    }
-
-    /**
-     * Requests the notification permission on Android 13+.
-     * On older versions this permission does not exist.
-     */
-    private fun requestNotificationsPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            checkOverlayPermissionOrProceed()
-        }
-    }
-
-    /**
-     * If the overlay permission is already granted, goes directly to
-     * MainActivity. Otherwise stays on this activity to show the
-     * overlay permission screen (Compose recomposition handles this).
-     */
-    private fun checkOverlayPermissionOrProceed() {
-        if (isOverlayPermissionGranted()) {
-            goToMainAndFinish()
-        }
-        // If not granted, Compose will recompose and show OverlayPermissionScreen
-    }
-
-    /**
-     * Returns true if the POST_NOTIFICATIONS permission is granted
-     * or if the Android version does not require it.
-     */
-    private fun isNotificationsPermissionGranted(): Boolean {
+    private fun checkNotificationsGranted(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-
         return ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    /**
-     * Returns true if the SYSTEM_ALERT_WINDOW (overlay) permission is granted.
-     * Always returns true below Android M since the permission did not exist.
-     */
-    private fun isOverlayPermissionGranted(): Boolean {
+    private fun checkOverlayGranted(): Boolean {
         return Settings.canDrawOverlays(this)
     }
 
-    /**
-     * Opens the system screen where the user can manually enable
-     * the notification permission for this application.
-     */
-    private fun openAppSettings() {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", packageName, null)
+    private fun requestNotificationsPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            // No notification permission needed on older Android — skip to overlay step.
+            notificationsGranted = true
+            if (overlayGranted) goToMainAndFinish()
         }
-        startActivity(intent)
     }
 
-    /**
-     * Opens the system screen where the user can grant the overlay permission.
-     */
-    private fun openOverlaySettings() {
-        waitingForOverlayPermission = true
-        val intent = Intent(
-            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            "package:$packageName".toUri()
+    private fun openAppSettings() {
+        startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+            }
         )
-        startActivity(intent)
     }
 
-    /**
-     * Navigates to the main screen and removes this activity
-     * from the back stack.
-     */
+    private fun openOverlaySettings() {
+        waitingForOverlay = true
+        startActivity(
+            Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                "package:$packageName".toUri()
+            )
+        )
+    }
+
     private fun goToMainAndFinish() {
         startActivity(Intent(this, MainActivity::class.java))
         finish()
