@@ -1,7 +1,7 @@
 git add .
-git commit -m "Prepare release v1.3.0"
+git commit -m "Prepare release v1.3.1"
 
-git tag -a v1.3.0 -m "Release v1.3.0"
+git tag -a v1.3.1 -m "Release v1.3.1"
 
 git push origin main
-git push origin v1.3.0
+git push origin v1.3.1
