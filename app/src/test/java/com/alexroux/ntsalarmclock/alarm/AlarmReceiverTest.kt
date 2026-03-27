@@ -74,7 +74,6 @@ class AlarmReceiverTest {
         every { wakeLock.acquire(any<Long>()) } just runs
         every { wakeLock.release() } just runs
 
-        var notificationShown = false
         var playbackStarted = false
 
         val receiver = object : AlarmReceiver() {
@@ -89,10 +88,6 @@ class AlarmReceiverTest {
             override fun createWakeLock(context: Context): PowerManager.WakeLock = wakeLock
 
             override fun areNotificationsAllowed(context: Context): Boolean = true
-
-            override fun showAlarmNotification(context: Context) {
-                notificationShown = true
-            }
 
             override fun startPlaybackService(context: Context) {
                 playbackStarted = true
@@ -113,7 +108,6 @@ class AlarmReceiverTest {
         verify(exactly = 1) { wakeLock.acquire(any<Long>()) }
         verify(exactly = 1) { wakeLock.release() }
         verify(exactly = 1) { pendingResult.finish() }
-        assert(notificationShown)
         assert(playbackStarted)
     }
 
@@ -149,8 +143,6 @@ class AlarmReceiverTest {
             override fun createWakeLock(context: Context): PowerManager.WakeLock = wakeLock
 
             override fun areNotificationsAllowed(context: Context): Boolean = true
-
-            override fun showAlarmNotification(context: Context) = Unit
 
             override fun startPlaybackService(context: Context) = Unit
         }
@@ -196,8 +188,6 @@ class AlarmReceiverTest {
 
             override fun areNotificationsAllowed(context: Context): Boolean = true
 
-            override fun showAlarmNotification(context: Context) = Unit
-
             override fun startPlaybackService(context: Context) = Unit
         }
 
@@ -229,7 +219,6 @@ class AlarmReceiverTest {
         every { wakeLock.acquire(any<Long>()) } just runs
         every { wakeLock.release() } just runs
 
-        var notificationShown = false
         var playbackStarted = false
 
         val receiver = object : AlarmReceiver() {
@@ -245,10 +234,6 @@ class AlarmReceiverTest {
 
             override fun areNotificationsAllowed(context: Context): Boolean = false
 
-            override fun showAlarmNotification(context: Context) {
-                notificationShown = true
-            }
-
             override fun startPlaybackService(context: Context) {
                 playbackStarted = true
             }
@@ -260,7 +245,6 @@ class AlarmReceiverTest {
         verify(exactly = 0) { scheduler.scheduleNextAlarm(any(), any(), any()) }
         coVerify(exactly = 1) { repository.setEnabled(false) }
         verify(exactly = 1) { pendingResult.finish() }
-        assert(!notificationShown)
         assert(!playbackStarted)
     }
 }
