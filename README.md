@@ -23,13 +23,12 @@ Feel free to contribute and don't forget to [support our beloved NTS Radio](http
 
 ## Warnings
 
-1. This app needs your permission to display notifications and overlay so the alarm can start and be
-   displayed on the sreen. It will
-   be asked when you start it.
-2. This app also needs internet to play the stream, so put your phone in a silent mode when
+1. This app needs the notifications and overlay permissions to start tha alarm and display it on
+    the sreen. It will be asked when you start it.
+3. This app also needs internet to play the stream, so put your phone in a silent mode when
    sleeping
    so the stream can run.
-3. I tested this app on recent versions of Android, but I advise you to run a classic alarm at the
+4. I tested this app on recent versions of Android, but I advise you to run a classic alarm at the
    same time
    in case the app doesn't work, at least for the first time.
 
