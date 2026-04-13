@@ -2,6 +2,7 @@ package com.alexroux.ntsalarmclock
 
 import android.app.Application
 import com.alexroux.ntsalarmclock.alarm.AlarmNotification
+import dagger.hilt.android.HiltAndroidApp
 
 /**
  * Custom Application class used to perform app-wide initialization.
@@ -10,6 +11,7 @@ import com.alexroux.ntsalarmclock.alarm.AlarmNotification
  * alarm notifications. This ensures the channel exists before any alarm
  * attempts to post a notification or start a foreground service.
  */
+@HiltAndroidApp
 class NTSAlarmClockApplication : Application() {
 
     override fun onCreate() {

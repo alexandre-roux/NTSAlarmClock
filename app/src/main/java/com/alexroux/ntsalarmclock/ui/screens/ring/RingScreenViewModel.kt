@@ -1,28 +1,29 @@
 package com.alexroux.ntsalarmclock.ui.screens.ring
 
-import android.app.Application
+import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.alexroux.ntsalarmclock.alarm.AlarmNotification.NOTIFICATION_ID
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
-import com.alexroux.ntsalarmclock.data.DataStoreAlarmSettingsRepository
-import com.alexroux.ntsalarmclock.data.alarmSettingsDataStore
-import com.alexroux.ntsalarmclock.data.nts.NtsNetwork
 import com.alexroux.ntsalarmclock.data.nts.NtsRepository
 import com.alexroux.ntsalarmclock.playback.PlaybackService
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class RingScreenViewModel @JvmOverloads constructor(
-    app: Application,
-    private val repository: AlarmSettingsRepository =
-        DataStoreAlarmSettingsRepository(app.alarmSettingsDataStore)
-) : AndroidViewModel(app) {
+@HiltViewModel
+class RingScreenViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val repository: AlarmSettingsRepository,
+    private val ntsRepository: NtsRepository
+) : ViewModel() {
 
     private val _currentShow = MutableStateFlow<String?>(null)
     val currentShow: StateFlow<String?> = _currentShow.asStateFlow()
@@ -39,8 +40,6 @@ class RingScreenViewModel @JvmOverloads constructor(
      * Stops the currently ringing alarm.
      */
     fun stopAlarm() {
-        val context = getApplication<Application>()
-
         // Stop the playback service responsible for alarm audio
         val stopIntent = Intent(context, PlaybackService::class.java).apply {
             action = PlaybackService.ACTION_STOP_ALARM
@@ -57,8 +56,6 @@ class RingScreenViewModel @JvmOverloads constructor(
     fun onVolumeLiveChange(volume: Int) {
         val sanitized = volume.coerceIn(0, 100)
         _volumeLive.value = sanitized
-
-        val context = getApplication<Application>()
 
         val intent = Intent(context, PlaybackService::class.java).apply {
             action = PlaybackService.ACTION_SET_VOLUME
@@ -92,19 +89,10 @@ class RingScreenViewModel @JvmOverloads constructor(
 
     private fun startFetchingCurrentShow() {
         viewModelScope.launch {
-            val ntsRepository = createNtsRepository()
-
             while (true) {
                 _currentShow.value = ntsRepository.getCurrentShow()
                 delay(60_000)
             }
         }
-    }
-
-    /**
-     * Create repository using singleton API instead of recreating Retrofit.
-     */
-    private fun createNtsRepository(): NtsRepository {
-        return NtsRepository(NtsNetwork.api)
     }
 }

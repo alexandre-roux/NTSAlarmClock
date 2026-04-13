@@ -9,15 +9,15 @@ import androidx.compose.material3.Surface
 import com.alexroux.ntsalarmclock.ui.screens.home.HomeScreen
 import com.alexroux.ntsalarmclock.ui.screens.home.HomeScreenViewModel
 import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
+import dagger.hilt.android.AndroidEntryPoint
 
 /**
  * Main entry point of the application.
  */
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: HomeScreenViewModel by viewModels {
-        HomeScreenViewModel.factory(application)
-    }
+    private val viewModel: HomeScreenViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

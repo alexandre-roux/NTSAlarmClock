@@ -1,18 +1,15 @@
 package com.alexroux.ntsalarmclock.ui.screens.home
 
-import android.app.Application
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.alexroux.ntsalarmclock.alarm.AlarmScheduler
 import com.alexroux.ntsalarmclock.alarm.NextAlarmCalculator
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
-import com.alexroux.ntsalarmclock.data.DataStoreAlarmSettingsRepository
-import com.alexroux.ntsalarmclock.data.alarmSettingsDataStore
 import com.alexroux.ntsalarmclock.playback.NTS_STREAM_URL
 import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +17,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 private const val TAG = "HomeScreenViewModel"
 
@@ -54,7 +52,8 @@ data class AlarmScheduleConfig(
     val enabledDays: Set<DayOfWeekUi>
 )
 
-class HomeScreenViewModel(
+@HiltViewModel
+class HomeScreenViewModel @Inject constructor(
     private val repository: AlarmSettingsRepository,
     private val alarmScheduler: AlarmScheduler
 ) : ViewModel() {
@@ -233,30 +232,5 @@ class HomeScreenViewModel(
                 enabledDays = enabledDays
             )
         )
-    }
-
-    companion object {
-        /**
-         * Manual factory used to keep the current architecture simple
-         * while removing the AndroidViewModel dependency.
-         */
-        fun factory(application: Application): ViewModelProvider.Factory {
-            val repository = DataStoreAlarmSettingsRepository(application.alarmSettingsDataStore)
-            val alarmScheduler = AlarmScheduler(application)
-
-            return object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    if (modelClass.isAssignableFrom(HomeScreenViewModel::class.java)) {
-                        return HomeScreenViewModel(
-                            repository = repository,
-                            alarmScheduler = alarmScheduler
-                        ) as T
-                    }
-
-                    throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
-                }
-            }
-        }
     }
 }

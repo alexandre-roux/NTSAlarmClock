@@ -19,7 +19,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.text.HtmlCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.NTSButton
 import com.alexroux.ntsalarmclock.ui.components.VolumeSlider
@@ -38,7 +37,7 @@ import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 fun RingScreen(
     isFallbackAudioActive: Boolean,
     onDismiss: () -> Unit,
-    viewModel: RingScreenViewModel = viewModel()
+    viewModel: RingScreenViewModel
 ) {
     val currentShow by viewModel.currentShow.collectAsState()
     val volumeLive by viewModel.volumeLive.collectAsState()
