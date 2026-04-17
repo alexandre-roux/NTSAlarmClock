@@ -39,7 +39,7 @@ fun NTSButton(
 ) {
     Box(
         modifier = modifier
-            .semantics(mergeDescendants = true) {
+            .semantics {
                 role = Role.Button
             }
             .clip(RectangleShape)

@@ -31,7 +31,7 @@ fun VolumeSlider(
     onVolumeLiveChange: (Int) -> Unit,
     onVolumeChangeFinished: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    label: String = "Volume"
+    label: String
 ) {
     var volumeUi by remember { mutableFloatStateOf(volumeLive.toFloat()) }
 

@@ -6,6 +6,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -37,13 +38,14 @@ fun HomeProgressiveVolumeSection(
             color = MaterialTheme.colorScheme.secondary,
             textAlign = TextAlign.Center,
         )
+        val progressiveVolumeDescription = stringResource(R.string.progressive_volume)
         Switch(
             checked = progressiveVolume,
             onCheckedChange = {
                 onProgressiveVolumeEnabledChange(it)
             },
-            modifier = androidx.compose.ui.Modifier.semantics {
-                contentDescription = "Progressive volume"
+            modifier = Modifier.semantics {
+                contentDescription = progressiveVolumeDescription
             }
         )
     }

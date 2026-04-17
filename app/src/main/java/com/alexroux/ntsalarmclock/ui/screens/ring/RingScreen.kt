@@ -96,7 +96,7 @@ fun RingScreenContent(
 
         if (!decodedCurrentShow.isNullOrBlank()) {
             Text(
-                text = stringResource(R.string.currently_playing) + decodedCurrentShow,
+                text = stringResource(R.string.currently_playing, decodedCurrentShow),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary,
                 textAlign = TextAlign.Center,
@@ -123,13 +123,13 @@ fun RingScreenContent(
             volumeLive = volumeLive,
             onVolumeLiveChange = onVolumeLiveChange,
             onVolumeChangeFinished = onVolumeChangeFinished,
-            label = "Alarm volume"
+            label = stringResource(R.string.alarm_volume)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         NTSButton(
-            text = "STOP",
+            text = stringResource(R.string.stop_alarm_button),
             textStyle = MaterialTheme.typography.displayLarge,
             onClick = onStopClick
         )
