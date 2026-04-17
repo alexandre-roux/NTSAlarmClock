@@ -73,6 +73,7 @@ class RingingActivity : ComponentActivity() {
                         isFallbackAudioActive = isFallbackAudioActive,
                         onDismiss = {
                             Log.d(TAG, "onDismiss")
+                            finish()
                         },
                         viewModel = viewModel
                     )
