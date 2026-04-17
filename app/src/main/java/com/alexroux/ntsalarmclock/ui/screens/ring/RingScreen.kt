@@ -15,10 +15,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.text.HtmlCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.NTSButton
 import com.alexroux.ntsalarmclock.ui.components.VolumeSlider
@@ -37,7 +41,7 @@ import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 fun RingScreen(
     isFallbackAudioActive: Boolean,
     onDismiss: () -> Unit,
-    viewModel: RingScreenViewModel
+    viewModel: RingScreenViewModel = viewModel()
 ) {
     val currentShow by viewModel.currentShow.collectAsState()
     val volumeLive by viewModel.volumeLive.collectAsState()
@@ -82,14 +86,17 @@ fun RingScreenContent(
     ) {
         Text(
             text = stringResource(R.string.alarm_ringing),
-            style = MaterialTheme.typography.displaySmall
+            style = MaterialTheme.typography.displaySmall,
+            modifier = Modifier.semantics {
+                liveRegion = LiveRegionMode.Assertive
+            }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         if (!decodedCurrentShow.isNullOrBlank()) {
             Text(
-                text = stringResource(R.string.currently_playing) + decodedCurrentShow,
+                text = stringResource(R.string.currently_playing, decodedCurrentShow),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary,
                 textAlign = TextAlign.Center,
@@ -115,13 +122,14 @@ fun RingScreenContent(
         VolumeSlider(
             volumeLive = volumeLive,
             onVolumeLiveChange = onVolumeLiveChange,
-            onVolumeChangeFinished = onVolumeChangeFinished
+            onVolumeChangeFinished = onVolumeChangeFinished,
+            label = stringResource(R.string.alarm_volume)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         NTSButton(
-            text = "STOP",
+            text = stringResource(R.string.stop_alarm_button),
             textStyle = MaterialTheme.typography.displayLarge,
             onClick = onStopClick
         )

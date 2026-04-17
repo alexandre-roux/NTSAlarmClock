@@ -46,7 +46,9 @@ fun HomeVolumeSection(
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause stream" else "Play stream",
+                    contentDescription = stringResource(
+                        if (isPlaying) R.string.pause_stream_preview else R.string.play_stream_preview
+                    ),
                     tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )
@@ -55,7 +57,8 @@ fun HomeVolumeSection(
             VolumeSlider(
                 volumeLive = volumeLive,
                 onVolumeLiveChange = onVolumeLiveChange,
-                onVolumeChangeFinished = onVolumeChangeFinished
+                onVolumeChangeFinished = onVolumeChangeFinished,
+                label = stringResource(R.string.alarm_volume)
             )
         }
     }
