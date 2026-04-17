@@ -15,10 +15,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.text.HtmlCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.NTSButton
 import com.alexroux.ntsalarmclock.ui.components.VolumeSlider
@@ -37,7 +41,7 @@ import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 fun RingScreen(
     isFallbackAudioActive: Boolean,
     onDismiss: () -> Unit,
-    viewModel: RingScreenViewModel
+    viewModel: RingScreenViewModel = viewModel()
 ) {
     val currentShow by viewModel.currentShow.collectAsState()
     val volumeLive by viewModel.volumeLive.collectAsState()
@@ -82,7 +86,10 @@ fun RingScreenContent(
     ) {
         Text(
             text = stringResource(R.string.alarm_ringing),
-            style = MaterialTheme.typography.displaySmall
+            style = MaterialTheme.typography.displaySmall,
+            modifier = Modifier.semantics {
+                liveRegion = LiveRegionMode.Assertive
+            }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -115,7 +122,8 @@ fun RingScreenContent(
         VolumeSlider(
             volumeLive = volumeLive,
             onVolumeLiveChange = onVolumeLiveChange,
-            onVolumeChangeFinished = onVolumeChangeFinished
+            onVolumeChangeFinished = onVolumeChangeFinished,
+            label = "Alarm volume"
         )
 
         Spacer(modifier = Modifier.height(24.dp))

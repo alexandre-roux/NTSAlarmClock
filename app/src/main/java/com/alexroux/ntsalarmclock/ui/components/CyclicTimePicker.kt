@@ -18,6 +18,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -76,7 +79,14 @@ fun CyclicTimePicker(
         ignoreMinuteCallback = true
     }
 
-    Box {
+    Box(
+        modifier = Modifier.semantics {
+            contentDescription = "Alarm time"
+            stateDescription = "${selectedHour.toString().padStart(2, '0')}:${
+                selectedMinute.toString().padStart(2, '0')
+            }"
+        }
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             key(startHourIndex) {
                 WheelTextPicker(

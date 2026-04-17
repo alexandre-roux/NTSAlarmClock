@@ -15,6 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -42,6 +47,7 @@ fun DaysOfWeekRow(
 
             DayButton(
                 label = day.shortLabel,
+                dayName = day.accessibilityLabel,
                 selected = isSelected,
                 onClick = { onToggleDay(day) },
             )
@@ -59,6 +65,7 @@ fun DaysOfWeekRow(
 @Composable
 private fun DayButton(
     label: String,
+    dayName: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -72,6 +79,11 @@ private fun DayButton(
     Row(
         modifier = modifier
             .size(40.dp)
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = dayName
+                stateDescription = if (selected) "Selected" else "Not selected"
+            }
             .clip(shape)
             .background(backgroundColor)
             .then(
@@ -89,3 +101,14 @@ private fun DayButton(
         )
     }
 }
+
+private val DayOfWeekUi.accessibilityLabel: String
+    get() = when (this) {
+        DayOfWeekUi.MO -> "Monday"
+        DayOfWeekUi.TU -> "Tuesday"
+        DayOfWeekUi.WE -> "Wednesday"
+        DayOfWeekUi.TH -> "Thursday"
+        DayOfWeekUi.FR -> "Friday"
+        DayOfWeekUi.SA -> "Saturday"
+        DayOfWeekUi.SU -> "Sunday"
+    }

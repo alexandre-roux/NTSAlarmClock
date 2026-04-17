@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.VolumeSlider
@@ -43,10 +45,17 @@ fun HomeVolumeSection(
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(
                 onClick = onPlayPauseClick,
+                modifier = Modifier.semantics {
+                    contentDescription = if (isPlaying) {
+                        "Pause stream preview"
+                    } else {
+                        "Play stream preview"
+                    }
+                }
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause stream" else "Play stream",
+                    contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )
@@ -55,7 +64,8 @@ fun HomeVolumeSection(
             VolumeSlider(
                 volumeLive = volumeLive,
                 onVolumeLiveChange = onVolumeLiveChange,
-                onVolumeChangeFinished = onVolumeChangeFinished
+                onVolumeChangeFinished = onVolumeChangeFinished,
+                label = "Alarm volume"
             )
         }
     }
