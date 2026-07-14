@@ -32,13 +32,14 @@ import kotlinx.coroutines.withContext
 open class AlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
-        Log.d(TAG, "onReceive")
+        Log.d(TAG, "onReceive: action=${intent?.action ?: "null"}")
 
         val pendingResult = createPendingResult()
         val wakeLock = createWakeLock(context)
 
         // Keep the CPU awake for the short amount of work done here.
         wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
+        Log.d(TAG, "Wake lock acquired for ${WAKE_LOCK_TIMEOUT_MS}ms")
 
         createScope().launch {
             try {
@@ -67,6 +68,7 @@ open class AlarmReceiver : BroadcastReceiver() {
                         return@withContext
                     }
 
+                    Log.d(TAG, "Notifications allowed, starting playback foreground service")
                     startPlaybackService(context)
                 }
 
@@ -106,9 +108,11 @@ open class AlarmReceiver : BroadcastReceiver() {
             } finally {
                 if (wakeLock.isHeld) {
                     wakeLock.release()
+                    Log.d(TAG, "Wake lock released")
                 }
 
                 pendingResult.finish()
+                Log.d(TAG, "PendingResult finished")
             }
         }
     }
@@ -118,6 +122,7 @@ open class AlarmReceiver : BroadcastReceiver() {
      */
     protected open fun areNotificationsAllowed(context: Context): Boolean {
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.e(TAG, "Notifications are disabled at app level")
             return false
         }
 
@@ -127,7 +132,10 @@ open class AlarmReceiver : BroadcastReceiver() {
                 android.Manifest.permission.POST_NOTIFICATIONS
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
-            if (!granted) return false
+            if (!granted) {
+                Log.e(TAG, "POST_NOTIFICATIONS permission is denied")
+                return false
+            }
         }
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -138,6 +146,10 @@ open class AlarmReceiver : BroadcastReceiver() {
             return false
         }
 
+        Log.d(
+            TAG,
+            "Notification checks passed: channelImportance=${channel?.importance ?: "missing"}"
+        )
         return true
     }
 

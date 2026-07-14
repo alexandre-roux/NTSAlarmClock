@@ -57,9 +57,13 @@ open class BootReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent?) {
-        val action = intent?.action ?: return
+        val action = intent?.action ?: run {
+            Log.w(TAG, "Ignoring boot receiver call with null action")
+            return
+        }
 
         if (action != Intent.ACTION_BOOT_COMPLETED) {
+            Log.d(TAG, "Ignoring unsupported broadcast action=$action")
             return
         }
 
@@ -74,6 +78,11 @@ open class BootReceiver : BroadcastReceiver() {
 
                 // Read the latest persisted settings once from DataStore.
                 val settings = repository.settings.first()
+                Log.d(
+                    TAG,
+                    "Restored settings after reboot: enabled=${settings.enabled}, " +
+                            "time=${settings.hour}:${settings.minute}, days=${settings.enabledDays}"
+                )
 
                 if (settings.enabled) {
                     scheduler.scheduleNextAlarm(

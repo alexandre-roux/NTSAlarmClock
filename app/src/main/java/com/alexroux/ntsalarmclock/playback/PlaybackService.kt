@@ -108,6 +108,11 @@ class PlaybackService : Service() {
      * Handles start and stop actions sent to the service.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(
+            TAG,
+            "onStartCommand: action=${intent?.action ?: "null"}, flags=$flags, startId=$startId"
+        )
+
         when (intent?.action) {
             ACTION_START_ALARM -> startAlarm()
             ACTION_STOP_ALARM -> stopAlarm()
@@ -153,6 +158,10 @@ class PlaybackService : Service() {
                 notification,
                 fgsType
             )
+            Log.d(
+                TAG,
+                "startForeground succeeded: notificationId=${AlarmNotification.NOTIFICATION_ID}, fgsType=$fgsType"
+            )
         } catch (t: Throwable) {
             Log.e(TAG, "startForeground failed, launching RingingActivity as fallback", t)
             launchRingingActivityAsFallback()
@@ -179,6 +188,10 @@ class PlaybackService : Service() {
                 putExtra(EXTRA_FALLBACK_AUDIO_ACTIVE, hasSwitchedToFallbackAudio)
             }
             startActivity(intent)
+            Log.d(
+                TAG,
+                "RingingActivity fallback launched: fallbackAudioActive=$hasSwitchedToFallbackAudio"
+            )
         } catch (t: Throwable) {
             Log.e(TAG, "launchRingingActivityAsFallback failed", t)
         }
@@ -244,6 +257,10 @@ class PlaybackService : Service() {
             if (progressiveVolumeEnabled) {
                 startProgressiveVolume(targetVolume)
             }
+        }.invokeOnCompletion { throwable ->
+            if (throwable != null) {
+                Log.e(TAG, "startPlayback coroutine failed", throwable)
+            }
         }
     }
 
@@ -294,6 +311,7 @@ class PlaybackService : Service() {
      */
     private fun startProgressiveVolume(targetVolume: Float) {
         progressiveVolumeJob?.cancel()
+        Log.d(TAG, "Starting progressive volume ramp: targetVolume=$targetVolume")
 
         progressiveVolumeJob = serviceScope.launch {
             val currentPlayer = player ?: return@launch
@@ -316,6 +334,7 @@ class PlaybackService : Service() {
             }
 
             currentPlayer.volume = targetVolume
+            Log.d(TAG, "Progressive volume ramp completed: targetVolume=$targetVolume")
         }
     }
 
@@ -337,6 +356,7 @@ class PlaybackService : Service() {
 
         serviceScope.launch {
             repository.setVolume(sanitizedVolume)
+            Log.d(TAG, "Persisted absolute volume: $sanitizedVolume")
         }
 
         Log.d(TAG, "Absolute volume set: $normalized")
@@ -363,6 +383,7 @@ class PlaybackService : Service() {
         serviceScope.launch {
             val volumeInt = (updatedVolume * 100).toInt()
             repository.setVolume(volumeInt)
+            Log.d(TAG, "Persisted manual volume change: $volumeInt")
         }
 
         Log.d(TAG, "Manual volume change applied: volume=$updatedVolume")
@@ -372,6 +393,7 @@ class PlaybackService : Service() {
      * Stops playback and releases the current player instance.
      */
     private fun stopPlayback() {
+        Log.d(TAG, "stopPlayback: playerAvailable=${player != null}")
         progressiveVolumeJob?.cancel()
         progressiveVolumeJob = null
 

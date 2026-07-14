@@ -1,6 +1,7 @@
 package com.alexroux.ntsalarmclock.ui.screens.permission
 
 import androidx.lifecycle.ViewModel
+import com.alexroux.ntsalarmclock.logging.NtsLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,6 +46,12 @@ class PermissionViewModel : ViewModel() {
         this.notificationsGranted = notificationsGranted
         this.overlayGranted = overlayGranted
 
+        NtsLogger.d(
+            TAG,
+            "permissions checked: notificationsGranted=$notificationsGranted, " +
+                    "overlayGranted=$overlayGranted, waitingForOverlayReturn=$waitingForOverlayReturn"
+        )
+
         if (waitingForOverlayReturn) {
             waitingForOverlayReturn = false
             // Overlay is helpful for downloaded APK behavior, but the old flow
@@ -64,6 +71,10 @@ class PermissionViewModel : ViewModel() {
         if (!granted) {
             deniedCount += 1
         }
+        NtsLogger.d(
+            TAG,
+            "notification permission result: granted=$granted, deniedCount=$deniedCount"
+        )
         updateUiState()
     }
 
@@ -72,20 +83,26 @@ class PermissionViewModel : ViewModel() {
      * onResume() preserve the existing UX: continue after one settings visit.
      */
     fun onOverlaySettingsOpened() {
+        NtsLogger.d(TAG, "overlay settings opened; waiting for onResume permission snapshot")
         waitingForOverlayReturn = true
     }
 
     // Keep the state transition table in one place so tests can exercise the
     // permission flow without launching Android UI or system settings.
     private fun updateUiState() {
-        _uiState.value = when {
+        val nextState = when {
             !notificationsGranted -> PermissionUiState.RequestNotifications(deniedCount)
             !overlayGranted -> PermissionUiState.RequestOverlay
             else -> PermissionUiState.Completed
         }
+        if (_uiState.value != nextState) {
+            NtsLogger.d(TAG, "uiState transition: ${_uiState.value} -> $nextState")
+        }
+        _uiState.value = nextState
     }
 
     companion object {
+        private const val TAG = "PermissionViewModel"
         const val NOTIFICATION_SETTINGS_DENIAL_THRESHOLD = 2
     }
 }

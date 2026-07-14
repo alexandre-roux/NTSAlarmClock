@@ -43,7 +43,10 @@ class AlarmScheduler(private val context: Context) {
             hour = hour,
             minute = minute,
             enabledDays = enabledDays
-        ) ?: return
+        ) ?: run {
+            Log.w(TAG, "scheduleNextAlarm: no future trigger could be computed")
+            return
+        }
 
         logNextAlarm(triggerAtMillis)
 
@@ -96,7 +99,10 @@ class AlarmScheduler(private val context: Context) {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             !alarmManager.canScheduleExactAlarms()
         ) {
-            Log.w(TAG, "Exact alarms are not allowed, falling back to inexact scheduling")
+            Log.w(
+                TAG,
+                "Exact alarms are not allowed, using inexact set() for triggerAtMillis=$triggerAtMillis"
+            )
 
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
@@ -108,6 +114,7 @@ class AlarmScheduler(private val context: Context) {
         }
 
         try {
+            Log.d(TAG, "Scheduling alarm with setAlarmClock(): triggerAtMillis=$triggerAtMillis")
             // This intent is used by the system for the "next alarm" affordance.
             val showIntent = Intent(context, RingingActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -128,7 +135,11 @@ class AlarmScheduler(private val context: Context) {
             )
 
             Log.d(TAG, "Alarm scheduled with setAlarmClock()")
-        } catch (_: SecurityException) {
+        } catch (securityException: SecurityException) {
+            Log.w(
+                TAG,
+                "setAlarmClock() rejected: ${securityException.message}. Trying exact fallback."
+            )
             scheduleExactFallback(triggerAtMillis, pendingIntent)
         }
     }
@@ -150,8 +161,8 @@ class AlarmScheduler(private val context: Context) {
                 pendingIntent
             )
 
-            Log.w(TAG, "Alarm scheduled with exact fallback")
-        } catch (_: SecurityException) {
+            Log.w(TAG, "Alarm scheduled with exact fallback: triggerAtMillis=$triggerAtMillis")
+        } catch (securityException: SecurityException) {
             // Final fallback if exact scheduling is still rejected.
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
@@ -159,7 +170,10 @@ class AlarmScheduler(private val context: Context) {
                 pendingIntent
             )
 
-            Log.w(TAG, "Exact fallback rejected, used inexact set() fallback")
+            Log.w(
+                TAG,
+                "Exact fallback rejected: ${securityException.message}. Used inexact set() fallback."
+            )
         }
     }
 
