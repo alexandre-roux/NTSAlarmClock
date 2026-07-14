@@ -2,6 +2,9 @@ name: Quality Gates
 
 on:
   push:
+    branches:
+      - main
+      - develop
   pull_request:
     branches:
       - main
@@ -27,11 +30,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -42,11 +45,17 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      - name: Generate unit test coverage report
+        run: ./gradlew debugCoverageReport --stacktrace
+
       - name: Run Android lint
         run: ./gradlew lintDebug --stacktrace
 
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
+
+      - name: Compile instrumented tests
+        run: ./gradlew assembleDebugAndroidTest --stacktrace
 
       - name: Upload unit test report
         if: always()
@@ -70,3 +79,12 @@ jobs:
           path: |
             app/build/reports/lint-results-debug.html
             app/build/reports/lint-results-debug.xml
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-coverage-report
+          path: |
+            app/build/reports/jacoco/debugCoverageReport/debugCoverageReport.xml
+            app/build/reports/jacoco/debugCoverageReport/html/
