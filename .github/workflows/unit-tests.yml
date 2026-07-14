@@ -1,11 +1,7 @@
-name: Unit Tests
+name: Quality Gates
 
 on:
   push:
-    branches:
-      - main
-      - develop
-      - 'feature/**'
   pull_request:
     branches:
       - main
@@ -16,18 +12,20 @@ permissions:
   contents: read
 
 concurrency:
-  group: unit-tests-${{ github.workflow }}-${{ github.ref }}
+  group: quality-gates-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  unit-tests:
-    name: Run Android unit tests
+  quality-gates:
+    name: Run baseline Android quality gates
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -44,6 +42,12 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      - name: Run Android lint
+        run: ./gradlew lintDebug --stacktrace
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
       - name: Upload unit test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -57,3 +61,12 @@ jobs:
         with:
           name: unit-test-results
           path: app/build/test-results/testDebugUnitTest/
+
+      - name: Upload Android lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint-reports
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
