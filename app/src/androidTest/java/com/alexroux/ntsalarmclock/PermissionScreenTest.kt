@@ -7,6 +7,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.alexroux.ntsalarmclock.ui.screens.permission.OverlayPermissionScreen
+import com.alexroux.ntsalarmclock.ui.screens.permission.PermissionScreen
 import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -106,6 +108,8 @@ class PermissionScreenTest {
     fun overlayPermissionScreen_showsOverlayCopyAndAllowAction() {
         var allowOverlayClicked = false
 
+        // The overlay screen is pure UI; the Activity owns the actual settings
+        // intent, so the test only verifies the callback wiring.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.setContent {
                 NTSAlarmClockTheme {
