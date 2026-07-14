@@ -54,6 +54,8 @@ class PermissionScreenTest {
     fun permissionScreen_showsSettingsActionAfterRepeatedDenials() {
         var settingsClicked = false
 
+        // deniedCount >= 2 models Android's repeated denial path, where asking
+        // again is less useful than sending the user to app settings.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.setContent {
                 NTSAlarmClockTheme {
@@ -73,6 +75,31 @@ class PermissionScreenTest {
         composeRule.onNodeWithText("OPEN SETTINGS").performClick()
 
         assertTrue(settingsClicked)
+    }
+
+    @Test
+    fun permissionScreen_keepsAllowActionAfterSingleDenial() {
+        var allowClicked = false
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.setContent {
+                NTSAlarmClockTheme {
+                    PermissionScreen(
+                        deniedCount = 1,
+                        onAllowClick = { allowClicked = true },
+                        onOpenSettingsClick = {}
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        // After one denial, the app still presents the direct permission request
+        // instead of jumping to system settings.
+        assertTrue(composeRule.onAllNodesWithText("OPEN SETTINGS").fetchSemanticsNodes().isEmpty())
+        composeRule.onNodeWithText("ALLOW NOTIFICATIONS").performClick()
+
+        assertTrue(allowClicked)
     }
 
     @Test

@@ -92,6 +92,88 @@ class AlarmSchedulerTest {
     }
 
     @Test
+    fun scheduleNextAlarm_usesExactFallback_whenAlarmClockThrowsSecurityException() {
+        mockkObject(NextAlarmCalculator)
+
+        every {
+            NextAlarmCalculator.computeNextTriggerMillis(
+                now = any<LocalDateTime>(),
+                hour = any<Int>(),
+                minute = any<Int>(),
+                enabledDays = any<Set<DayOfWeekUi>>()
+            )
+        } returns 123456L
+        every {
+            alarmManager.setAlarmClock(any<AlarmManager.AlarmClockInfo>(), alarmPendingIntent)
+        } throws SecurityException("setAlarmClock denied")
+        every {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                123456L,
+                alarmPendingIntent
+            )
+        } just runs
+
+        scheduler.scheduleNextAlarm(
+            hour = 8,
+            minute = 0,
+            enabledDays = emptySet()
+        )
+
+        // Some OEM/API combinations reject setAlarmClock(); the scheduler should
+        // still try the exact while-idle fallback before giving up.
+        verify(exactly = 1) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                123456L,
+                alarmPendingIntent
+            )
+        }
+        verify(exactly = 0) {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, 123456L, alarmPendingIntent)
+        }
+    }
+
+    @Test
+    fun scheduleNextAlarm_usesInexactFallback_whenExactFallbackThrowsSecurityException() {
+        mockkObject(NextAlarmCalculator)
+
+        every {
+            NextAlarmCalculator.computeNextTriggerMillis(
+                now = any<LocalDateTime>(),
+                hour = any<Int>(),
+                minute = any<Int>(),
+                enabledDays = any<Set<DayOfWeekUi>>()
+            )
+        } returns 123456L
+        every {
+            alarmManager.setAlarmClock(any<AlarmManager.AlarmClockInfo>(), alarmPendingIntent)
+        } throws SecurityException("setAlarmClock denied")
+        every {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                123456L,
+                alarmPendingIntent
+            )
+        } throws SecurityException("exact fallback denied")
+        every {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, 123456L, alarmPendingIntent)
+        } just runs
+
+        scheduler.scheduleNextAlarm(
+            hour = 8,
+            minute = 0,
+            enabledDays = emptySet()
+        )
+
+        // The final fallback is intentionally inexact. It is less precise, but
+        // still better than dropping the alarm completely when exact APIs fail.
+        verify(exactly = 1) {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, 123456L, alarmPendingIntent)
+        }
+    }
+
+    @Test
     fun scheduleNextAlarm_doesNothingIfTriggerIsNull() {
         // A null trigger means there is no valid future alarm to hand to
         // AlarmManager.

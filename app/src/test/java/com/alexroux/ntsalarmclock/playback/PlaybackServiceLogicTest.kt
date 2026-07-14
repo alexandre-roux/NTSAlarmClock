@@ -57,6 +57,18 @@ class PlaybackServiceLogicTest {
     }
 
     @Test
+    fun initialPlayerVolume_clampsTargetVolume_whenProgressiveVolumeDisabled() {
+        val initialVolume = PlaybackServiceLogic.initialPlayerVolume(
+            targetVolumePercent = 150,
+            progressiveVolumeEnabled = false
+        )
+
+        // Even if corrupt settings contain an out-of-range value, the player
+        // must never receive a volume above 1f.
+        assertEquals(1f, initialVolume)
+    }
+
+    @Test
     fun nextProgressiveVolumeStep_increasesVolumeWithoutExceedingTarget() {
         // Each tick moves by an equal fraction of the target volume.
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -102,6 +114,18 @@ class PlaybackServiceLogicTest {
     }
 
     @Test
+    fun nextProgressiveVolumeStep_keepsZeroTargetMuted() {
+        val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
+            currentVolume = 0f,
+            targetVolume = 0f,
+            stepCount = 10
+        )
+
+        // A saved target of zero means the alarm is intentionally muted.
+        assertEquals(0f, nextVolume)
+    }
+
+    @Test
     fun applyManualVolumeDelta_changesVolumeWithinBounds() {
         assertEquals(
             0.6f,
@@ -125,6 +149,24 @@ class PlaybackServiceLogicTest {
             0f,
             PlaybackServiceLogic.applyManualVolumeDelta(
                 currentVolume = 0.05f,
+                delta = -0.1f
+            )
+        )
+    }
+
+    @Test
+    fun applyManualVolumeDelta_clampsAlreadyOutOfRangeCurrentVolume() {
+        assertEquals(
+            1f,
+            PlaybackServiceLogic.applyManualVolumeDelta(
+                currentVolume = 1.2f,
+                delta = 0.1f
+            )
+        )
+        assertEquals(
+            0f,
+            PlaybackServiceLogic.applyManualVolumeDelta(
+                currentVolume = -0.2f,
                 delta = -0.1f
             )
         )

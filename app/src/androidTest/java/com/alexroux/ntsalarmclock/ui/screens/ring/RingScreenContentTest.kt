@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -79,5 +80,36 @@ class RingScreenContentTest {
         composeRule.onNodeWithText("STOP").performClick()
 
         assertTrue(stopClicked)
+    }
+
+    @Test
+    fun ringScreen_hidesCurrentShowAndFallbackMessageWhenUnavailable() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.setContent {
+                NTSAlarmClockTheme {
+                    RingScreenContent(
+                        isFallbackAudioActive = false,
+                        currentShow = null,
+                        volumeLive = 70,
+                        onVolumeLiveChange = {},
+                        onVolumeChangeFinished = {},
+                        onStopClick = {}
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        // This verifies the normal online state: no stale show label and no
+        // fallback warning should be displayed unless the ViewModel says so.
+        assertTrue(
+            composeRule.onAllNodesWithText("Currently playing:").fetchSemanticsNodes().isEmpty()
+        )
+        assertTrue(
+            composeRule.onAllNodesWithText(
+                "This backup music is playing because NTS cannot be played. Maybe your internet is disabled?"
+            ).fetchSemanticsNodes().isEmpty()
+        )
+        composeRule.onNodeWithText("STOP").assertIsDisplayed()
     }
 }
