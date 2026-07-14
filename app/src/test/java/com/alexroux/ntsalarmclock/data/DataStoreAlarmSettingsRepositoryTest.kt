@@ -22,6 +22,12 @@ import org.junit.Before
 import org.junit.Test
 import java.nio.file.Files
 
+/**
+ * Repository tests backed by a real temporary Preferences DataStore.
+ *
+ * Using the actual DataStore implementation verifies key names, defaults, and
+ * serialization without writing to the app's production preferences file.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DataStoreAlarmSettingsRepositoryTest {
 
@@ -32,6 +38,8 @@ class DataStoreAlarmSettingsRepositoryTest {
     }
 
     private fun createDataStore(scope: TestScope): DataStore<Preferences> {
+        // Each test gets an isolated file so persisted values cannot leak
+        // between repository instances.
         val file = Files.createTempFile("alarm-settings-test", ".preferences_pb").toFile()
 
         return PreferenceDataStoreFactory.create(
@@ -122,6 +130,8 @@ class DataStoreAlarmSettingsRepositoryTest {
         val dataStore = createDataStore(this)
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
+        // Write raw preferences directly to simulate corrupted or obsolete
+        // persisted data that bypassed the repository API.
         dataStore.edit { prefs ->
             prefs[stringSetPreferencesKey("alarm_enabled_days")] =
                 setOf("MO", "INVALID_DAY", "FR")
@@ -154,6 +164,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         val dataStore = createDataStore(this)
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
+        // This verifies the repository mapping layer, not the setter methods.
         dataStore.edit { prefs ->
             prefs[booleanPreferencesKey("alarm_enabled")] = true
             prefs[intPreferencesKey("alarm_hour")] = 5

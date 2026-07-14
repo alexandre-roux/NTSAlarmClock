@@ -129,92 +129,6 @@ class PermissionActivity : ComponentActivity() {
     }
 
     /**
-     * Screens
-     */
-
-    @androidx.compose.runtime.Composable
-    fun PermissionScreen(
-        deniedCount: Int,
-        onAllowClick: () -> Unit,
-        onOpenSettingsClick: () -> Unit
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = stringResource(R.string.notifications_permission_required),
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = stringResource(R.string.this_app_needs_notification_permission_to_work),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(36.dp))
-
-            if (deniedCount >= 2) {
-                NTSButton(
-                    text = stringResource(R.string.open_settings),
-                    textStyle = MaterialTheme.typography.headlineMedium,
-                    onClick = onOpenSettingsClick
-                )
-            } else {
-                NTSButton(
-                    text = stringResource(R.string.allow_notifications),
-                    textStyle = MaterialTheme.typography.headlineMedium,
-                    onClick = onAllowClick
-                )
-            }
-        }
-    }
-
-    @androidx.compose.runtime.Composable
-    fun OverlayPermissionScreen(
-        onAllowClick: () -> Unit
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = stringResource(R.string.overlay_permission_required),
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = stringResource(R.string.overlay_permission_explanation),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(36.dp))
-
-            NTSButton(
-                text = stringResource(R.string.allow_overlay),
-                textStyle = MaterialTheme.typography.headlineMedium,
-                onClick = onAllowClick
-            )
-        }
-    }
-
-    /**
      *Permission helpers
      */
     private fun checkNotificationsGranted(): Boolean {
@@ -260,5 +174,87 @@ class PermissionActivity : ComponentActivity() {
     private fun goToMainAndFinish() {
         startActivity(Intent(this, MainActivity::class.java))
         finish()
+    }
+}
+
+@androidx.compose.runtime.Composable
+fun PermissionScreen(
+    deniedCount: Int,
+    onAllowClick: () -> Unit,
+    onOpenSettingsClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(R.string.notifications_permission_required),
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = stringResource(R.string.this_app_needs_notification_permission_to_work),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(36.dp))
+
+        if (deniedCount >= 2) {
+            NTSButton(
+                text = stringResource(R.string.open_settings),
+                textStyle = MaterialTheme.typography.headlineMedium,
+                onClick = onOpenSettingsClick
+            )
+        } else {
+            NTSButton(
+                text = stringResource(R.string.allow_notifications),
+                textStyle = MaterialTheme.typography.headlineMedium,
+                onClick = onAllowClick
+            )
+        }
+    }
+}
+
+@androidx.compose.runtime.Composable
+fun OverlayPermissionScreen(
+    onAllowClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(R.string.overlay_permission_required),
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = stringResource(R.string.overlay_permission_explanation),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(36.dp))
+
+        NTSButton(
+            text = stringResource(R.string.allow_overlay),
+            textStyle = MaterialTheme.typography.headlineMedium,
+            onClick = onAllowClick
+        )
     }
 }

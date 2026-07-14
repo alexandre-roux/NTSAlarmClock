@@ -19,6 +19,12 @@ import org.junit.Before
 import org.junit.Test
 import java.time.LocalDateTime
 
+/**
+ * JVM tests for AlarmScheduler's interaction with Android AlarmManager.
+ *
+ * Android framework entry points are mocked so the tests can verify scheduling
+ * calls without registering real alarms on a device.
+ */
 class AlarmSchedulerTest {
 
     private val context = mockk<Context>(relaxed = true)
@@ -30,6 +36,8 @@ class AlarmSchedulerTest {
 
     @Before
     fun setup() {
+        // AlarmScheduler obtains AlarmManager and PendingIntents internally, so
+        // those Android APIs are mocked before the scheduler is constructed.
         every { context.getSystemService(AlarmManager::class.java) } returns alarmManager
         every { alarmManager.canScheduleExactAlarms() } returns true
         every { alarmPendingIntent.cancel() } just runs
@@ -55,6 +63,8 @@ class AlarmSchedulerTest {
 
     @Test
     fun scheduleNextAlarm_callsCancelThenSchedules() {
+        // The calculator is mocked here because this test only verifies the
+        // Android scheduling side effect.
         mockkObject(NextAlarmCalculator)
 
         every {
@@ -83,6 +93,8 @@ class AlarmSchedulerTest {
 
     @Test
     fun scheduleNextAlarm_doesNothingIfTriggerIsNull() {
+        // A null trigger means there is no valid future alarm to hand to
+        // AlarmManager.
         mockkObject(NextAlarmCalculator)
 
         every {

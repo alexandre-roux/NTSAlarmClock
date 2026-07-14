@@ -14,6 +14,13 @@ object PlaybackServiceLogic {
     }
 
     /**
+     * Clamp app volume to the persisted 0..100 range.
+     */
+    fun coerceVolumePercent(volumePercent: Int): Int {
+        return volumePercent.coerceIn(0, 100)
+    }
+
+    /**
      * Return the initial volume applied when playback starts.
      *
      * Progressive volume starts at zero and increases later.
@@ -37,5 +44,25 @@ object PlaybackServiceLogic {
 
         val volumeStep = targetVolume / stepCount
         return (currentVolume + volumeStep).coerceAtMost(targetVolume)
+    }
+
+    /**
+     * Apply a hardware-button delta to the current ExoPlayer volume.
+     */
+    fun applyManualVolumeDelta(
+        currentVolume: Float,
+        delta: Float
+    ): Float {
+        return (currentVolume + delta).coerceIn(0f, 1f)
+    }
+
+    /**
+     * Fallback audio can be activated only once and only if a player exists.
+     */
+    fun canSwitchToFallbackAudio(
+        hasSwitchedToFallbackAudio: Boolean,
+        playerAvailable: Boolean
+    ): Boolean {
+        return !hasSwitchedToFallbackAudio && playerAvailable
     }
 }
