@@ -7,70 +7,108 @@
 
 An Android alarm clock app that wakes you up using the live NTS Radio stream.
 
-I love waking up to NTS in the morning and couldn’t find an app that does it, so I decided to
-develop
-one!
+I love waking up to NTS in the morning and couldn’t find an app that did this, so I decided to build
+one.
 
-Feel free to contribute and don't forget to [support our beloved NTS Radio](https://www.nts.live/supporters).
+Feel free to contribute, and don’t forget
+to [support our beloved NTS Radio](https://www.nts.live/supporters).
 
 ## Features
 
-- Simple interface to set your alarm
-- Adjust the maximum volume
-- Configure a progressive volume that increases over time
-- Choose the days you want your alarm to repeat
-- Fallback music plays if the stream is unavailable
+* Simple interface for configuring an alarm
+* Adjustable maximum playback volume
+* Progressive volume that gradually increases over time
+* Customisable recurring days
+* Offline fallback music if the live stream is unavailable
 
-## Warnings
+## Important information
 
-1. This app needs the notifications and overlay permissions to start tha alarm and display it on
-    the sreen. It will be asked when you start it.
-3. This app also needs internet to play the stream, so put your phone in a silent mode when
-   sleeping
-   so the stream can run.
-4. I tested this app on recent versions of Android, but I advise you to run a classic alarm at the
-   same time
-   in case the app doesn't work, at least for the first time.
+1. The app requires notification and full-screen display permissions to start the alarm and show the
+   ringing screen. The required permissions are requested during the onboarding process.
+2. An internet connection is required to play the live NTS stream. If the stream cannot be played,
+   the app automatically switches to a bundled offline track.
+3. Alarm reliability can vary across Android versions and device manufacturers because of battery
+   optimisation, exact-alarm, notification, and full-screen-intent restrictions. The app includes
+   permission onboarding, boot rescheduling, and offline fallback audio to mitigate these
+   limitations.
+4. When using the app for the first time, it is recommended to test an alarm a few minutes in
+   advance and verify that the required permissions have been granted.
 
 ## Installation
 
-This app isn't available on the Google Play Store.
+The app is not currently available on the Google Play Store.
 
 Download the latest APK [here](https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk).
 
-You can also scan this QR code from your phone:
+You can also scan this QR code with your phone:
 
-![QR code to download the latest APK](https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk)
+![QR code to download the latest APK](https://api.qrserver.com/v1/create-qr-code/?size=220x220\&data=https://github.com/alexandre-roux/NTSAlarmClock/releases/latest/download/NTSAlarmClock-latest.apk)
 
-Then open the file to install.
+Once downloaded, open the APK file to install the app.
 
-You may need to allow installation from unknown sources.
+Depending on your Android settings, you may need to allow your browser or file manager to install
+apps from unknown sources.
 
-## Architecture & tech stack
+## Architecture and tech stack
 
-The app follows a MVVM architecture. Here is a logical diagram:
+The app follows the MVVM architecture. The following diagram provides an overview of its main
+components:
+
 ![Logical diagram for the NTS Alarm Clock app](assets/logical-diagram.png)
 
 A more detailed version of the diagram is
 available [here](https://mermaid.ai/d/91e95f5c-8473-48df-b634-e855d02e446f).
 
-Main building blocks:
+### Main building blocks
 
-- **Compose UI**: Declarative UI layer using a single-activity architecture.
-- **ViewModels**: Handle UI state and orchestration using StateFlow and Coroutines.
-- **Repository Pattern**: `AlarmSettingsRepository` provides a clean API for the UI to interact with
-  data.
-- **DataStore**: Used for persistent storage of alarm settings (time, enabled days, volume).
-- **AlarmManager**: Schedules the alarms, integrated with a `BroadcastReceiver` to
-  handle system events.
-- **Foreground Service**: `PlaybackService` manages the lifecycle of the NTS stream to ensure it
-  keeps playing.
-- **Media3 (ExoPlayer)**: Used for streaming the live NTS Radio audio.
+* **Jetpack Compose**: Declarative UI built using a single-activity architecture.
+* **ViewModels**: Manage UI state and coordinate application logic using StateFlow and Kotlin
+  Coroutines.
+* **Repository pattern**: `AlarmSettingsRepository` provides a clean interface between the UI layer
+  and persistent data.
+* **DataStore**: Persists alarm settings, including the alarm time, enabled days, volume, and
+  progressive-volume preference.
+* **AlarmManager**: Schedules exact alarms and works with broadcast receivers to handle alarm and
+  system events.
+* **BroadcastReceiver**: Starts the alarm flow when an alarm is triggered and restores scheduled
+  alarms after the device restarts.
+* **Foreground service**: `PlaybackService` manages alarm playback independently of the UI
+  lifecycle.
+* **Media3 / ExoPlayer**: Plays the live NTS Radio stream and the bundled offline fallback track.
+* **Retrofit**: Retrieves information about the currently playing NTS show.
+* **Hilt**: Manages dependency creation and injection across the application.
+
+## Reliability and fallback behaviour
+
+When an alarm is triggered, the app starts a foreground playback service and attempts to play the
+live NTS Radio stream.
+
+If the stream cannot be loaded because of a network or playback error, the app automatically
+switches to a bundled offline track. Progressive volume and the configured maximum volume are
+applied to both playback sources.
+
+Recurring alarms are recalculated after they ring, and scheduled alarms are restored when the device
+restarts.
+
+## Testing
+
+The project includes unit and instrumentation tests covering key behaviours such as:
+
+* Calculating the next alarm occurrence
+* Scheduling and cancelling alarms
+* Restoring alarms after a device restart
+* Persisting alarm settings
+* ViewModel state management
+* Progressive-volume calculations
+* Playback fallback behaviour
+* Notification and manifest configuration
+* Main Compose screens
 
 ## Music credits
 
 The fallback offline track used by this app is:
 
-"Northern Glade" by Kevin MacLeod (incompetech.com)  
-Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0):  
-http://creativecommons.org/licenses/by/4.0/
+**“Northern Glade” by Kevin MacLeod**
+Source: incompetech.com
+Licensed under
+the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/).
