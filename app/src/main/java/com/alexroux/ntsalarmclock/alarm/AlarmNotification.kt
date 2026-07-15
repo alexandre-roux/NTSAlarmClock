@@ -1,5 +1,6 @@
 package com.alexroux.ntsalarmclock.alarm
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -12,38 +13,21 @@ import com.alexroux.ntsalarmclock.RingingActivity
 import com.alexroux.ntsalarmclock.playback.PlaybackService
 
 object AlarmNotification {
-
-    // Notification channel used for alarm notifications
     const val CHANNEL_ID = "alarm_channel_v2"
-    const val CHANNEL_NAME = "Alarm"
-
-    // Notification id used when posting the alarm notification
     const val NOTIFICATION_ID = 1001
-
-    // Request codes used for the PendingIntents
     const val REQUEST_CODE_FULLSCREEN = 2001
     const val REQUEST_CODE_STOP = 2002
 
-    /**
-     * Creates the notification channel used for alarms.
-     *
-     * On Android 8+ notifications must be posted to a channel.
-     * This method is safe to call multiple times because the system
-     * ignores the call if the channel already exists.
-     */
     fun createNotificationChannel(context: Context) {
-
         val channel = NotificationChannel(
             CHANNEL_ID,
-            CHANNEL_NAME,
+            context.getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Notifications used when the alarm is ringing"
+            description = context.getString(R.string.notification_channel_description)
 
-            // Make the notification visible on the lock screen
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-
-            // Disable vibration and notification sound so only the alarm player is heard
+            // Media3 owns alarm audio; the notification must remain silent.
             enableVibration(false)
             setSound(null, null)
         }
@@ -54,29 +38,18 @@ object AlarmNotification {
         notificationManager.createNotificationChannel(channel)
     }
 
-    /**
-     * Builds the notification shown when the alarm is ringing.
-     *
-     * The notification:
-     * - launches the full screen alarm UI
-     * - appears above the lock screen
-     * - provides an action to stop the alarm
-     */
-    fun buildAlarmNotification(context: Context): NotificationCompat.Builder {
-
-        /**
-         * Intent used to open the alarm ringing screen.
-         */
+    @SuppressLint("FullScreenIntentPolicy")
+    fun buildAlarmNotification(
+        context: Context,
+        fallbackAudioActive: Boolean = false
+    ): Notification {
         val activityIntent = Intent(context, RingingActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, fallbackAudioActive)
         }
 
-        /**
-         * PendingIntent used for both tapping the notification
-         * and launching the full screen alarm UI.
-         */
         val fullScreenPendingIntent = PendingIntent.getActivity(
             context,
             REQUEST_CODE_FULLSCREEN,
@@ -84,16 +57,10 @@ object AlarmNotification {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        /**
-         * Intent used to stop the alarm playback.
-         */
         val stopIntent = Intent(context, PlaybackService::class.java).apply {
             action = PlaybackService.ACTION_STOP_ALARM
         }
 
-        /**
-         * PendingIntent triggered by the "Stop" action button.
-         */
         val stopPendingIntent = PendingIntent.getService(
             context,
             REQUEST_CODE_STOP,
@@ -101,13 +68,10 @@ object AlarmNotification {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        /**
-         * Build the alarm notification.
-         */
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(context.getString(R.string.app_name))
-            .setContentText("Alarm ringing")
+            .setContentText(context.getString(R.string.notification_alarm_ringing))
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -116,6 +80,11 @@ object AlarmNotification {
             .setOnlyAlertOnce(true)
             .setContentIntent(fullScreenPendingIntent)
             .setFullScreenIntent(fullScreenPendingIntent, true)
-            .addAction(R.drawable.ic_launcher_foreground, "Stop", stopPendingIntent)
+            .addAction(
+                R.drawable.ic_launcher_foreground,
+                context.getString(R.string.stop_alarm_button),
+                stopPendingIntent
+            )
+            .build()
     }
 }

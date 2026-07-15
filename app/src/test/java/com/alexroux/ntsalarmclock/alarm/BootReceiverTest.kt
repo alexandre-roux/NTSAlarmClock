@@ -6,7 +6,6 @@ import android.content.Intent
 import android.util.Log
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -25,6 +24,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.time.DayOfWeek
 
 /**
  * JVM tests for restoring alarm state after device reboot.
@@ -69,7 +69,7 @@ class BootReceiverTest {
                 hour = 6,
                 minute = 15,
                 volume = 70,
-                enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR),
+                enabledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY),
                 progressiveVolume = false
             )
         )
@@ -85,7 +85,7 @@ class BootReceiverTest {
             scheduler.scheduleNextAlarm(
                 hour = 6,
                 minute = 15,
-                enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR)
+                enabledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)
             )
         }
         verify(exactly = 0) { scheduler.cancel() }

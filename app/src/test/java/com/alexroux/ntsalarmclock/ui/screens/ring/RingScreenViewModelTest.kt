@@ -75,7 +75,7 @@ class RingScreenViewModelTest {
         every { context.startService(any()) } returns null
         every { notificationManager.cancel(any()) } just runs
         every { repository.settings } returns settingsFlow
-        coEvery { ntsRepository.getCurrentShow() } returns null
+        coEvery { ntsRepository.getCurrentShow() } returns Result.success(null)
     }
 
     @After
@@ -161,7 +161,7 @@ class RingScreenViewModelTest {
     @Test
     fun currentShow_isLoadedOnStart() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        coEvery { ntsRepository.getCurrentShow() } returns "Breakfast Show"
+        coEvery { ntsRepository.getCurrentShow() } returns Result.success("Breakfast Show")
 
         val viewModel = createViewModel()
         try {

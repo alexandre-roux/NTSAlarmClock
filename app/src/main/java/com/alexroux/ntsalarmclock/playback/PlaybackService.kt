@@ -1,22 +1,15 @@
 package com.alexroux.ntsalarmclock.playback
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresPermission
-import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.media3.common.MediaItem
@@ -31,17 +24,12 @@ import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.milliseconds
 
-private const val PROGRESSIVE_VOLUME_DURATION_MS = 60_000L
-private const val PROGRESSIVE_VOLUME_STEP_DELAY_MS = 1_000L
 private const val MANUAL_VOLUME_STEP = 0.1f
 
 /**
@@ -74,8 +62,9 @@ class PlaybackService : Service() {
     // Service scope used for asynchronous work tied to the service lifecycle.
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    // Job used to control progressive volume updates.
-    private var progressiveVolumeJob: Job? = null
+    private val volumeController by lazy {
+        PlaybackVolumeController(serviceScope, repository)
+    }
 
     // Prevents switching to the local fallback audio more than once.
     private var hasSwitchedToFallbackAudio = false
@@ -97,8 +86,7 @@ class PlaybackService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        // Ensure the notification channel exists before posting notifications.
-        createNotificationChannelIfNeeded()
+        AlarmNotification.createNotificationChannel(this)
     }
 
     // This service does not support binding.
@@ -255,7 +243,7 @@ class PlaybackService : Service() {
             Log.d(TAG, "after prepare: playWhenReady=${currentPlayer.playWhenReady}")
 
             if (progressiveVolumeEnabled) {
-                startProgressiveVolume(targetVolume)
+                volumeController.startProgressiveVolume(currentPlayer, targetVolume)
             }
         }.invokeOnCompletion { throwable ->
             if (throwable != null) {
@@ -307,59 +295,14 @@ class PlaybackService : Service() {
     }
 
     /**
-     * Gradually increases the player volume until the saved target volume is reached.
-     */
-    private fun startProgressiveVolume(targetVolume: Float) {
-        progressiveVolumeJob?.cancel()
-        Log.d(TAG, "Starting progressive volume ramp: targetVolume=$targetVolume")
-
-        progressiveVolumeJob = serviceScope.launch {
-            val currentPlayer = player ?: return@launch
-            val stepCount =
-                (PROGRESSIVE_VOLUME_DURATION_MS / PROGRESSIVE_VOLUME_STEP_DELAY_MS).toInt()
-
-            repeat(stepCount) {
-                delay(PROGRESSIVE_VOLUME_STEP_DELAY_MS.milliseconds)
-
-                val updatedVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
-                    currentVolume = currentPlayer.volume,
-                    targetVolume = targetVolume,
-                    stepCount = stepCount
-                )
-                currentPlayer.volume = updatedVolume
-
-                if (updatedVolume >= targetVolume) {
-                    return@launch
-                }
-            }
-
-            currentPlayer.volume = targetVolume
-            Log.d(TAG, "Progressive volume ramp completed: targetVolume=$targetVolume")
-        }
-    }
-
-    /**
      * Sets an absolute volume from the UI slider and persists it.
      */
     private fun setAbsoluteVolume(volume: Int) {
         val currentPlayer = player ?: return
 
-        val sanitizedVolume = PlaybackServiceLogic.coerceVolumePercent(volume)
-        val normalized = PlaybackServiceLogic.toPlayerVolume(sanitizedVolume)
-
-        progressiveVolumeJob?.cancel()
-        progressiveVolumeJob = null
         progressiveVolumeEnabled = false
-
-        currentPlayer.volume = normalized
-        targetVolume = normalized
-
-        serviceScope.launch {
-            repository.setVolume(sanitizedVolume)
-            Log.d(TAG, "Persisted absolute volume: $sanitizedVolume")
-        }
-
-        Log.d(TAG, "Absolute volume set: $normalized")
+        targetVolume = volumeController.setAbsoluteVolume(currentPlayer, volume)
+        Log.d(TAG, "Absolute volume set: $targetVolume")
     }
 
     /**
@@ -369,33 +312,18 @@ class PlaybackService : Service() {
     private fun adjustTemporaryVolumeBy(delta: Float) {
         val currentPlayer = player ?: return
 
-        progressiveVolumeJob?.cancel()
-        progressiveVolumeJob = null
         progressiveVolumeEnabled = false
-
-        val updatedVolume = PlaybackServiceLogic.applyManualVolumeDelta(
-            currentVolume = currentPlayer.volume,
-            delta = delta
-        )
-        currentPlayer.volume = updatedVolume
-        targetVolume = updatedVolume
-
-        serviceScope.launch {
-            val volumeInt = (updatedVolume * 100).toInt()
-            repository.setVolume(volumeInt)
-            Log.d(TAG, "Persisted manual volume change: $volumeInt")
-        }
-
-        Log.d(TAG, "Manual volume change applied: volume=$updatedVolume")
+        targetVolume = volumeController.adjustVolume(currentPlayer, delta)
+        Log.d(TAG, "Manual volume change applied: volume=$targetVolume")
     }
 
     /**
      * Stops playback and releases the current player instance.
      */
     private fun stopPlayback() {
-        Log.d(TAG, "stopPlayback: playerAvailable=${player != null}")
-        progressiveVolumeJob?.cancel()
-        progressiveVolumeJob = null
+        if (this::repository.isInitialized) {
+            volumeController.cancelProgressiveVolume()
+        }
 
         hasSwitchedToFallbackAudio = false
 
@@ -414,7 +342,12 @@ class PlaybackService : Service() {
      * Safe wrapper around notification creation.
      */
     private fun buildForegroundAlarmNotificationOrNull(): Notification? {
-        return runCatching { buildForegroundAlarmNotification() }
+        return runCatching {
+            AlarmNotification.buildAlarmNotification(
+                context = this,
+                fallbackAudioActive = hasSwitchedToFallbackAudio
+            )
+        }
             .onFailure { Log.e(TAG, "buildForegroundAlarmNotification failed", it) }
             .getOrNull()
     }
@@ -426,101 +359,6 @@ class PlaybackService : Service() {
     private fun updateNotificationWithFallbackState() {
         val notification = buildForegroundAlarmNotificationOrNull() ?: return
         NotificationManagerCompat.from(this).notify(AlarmNotification.NOTIFICATION_ID, notification)
-    }
-
-    /**
-     * Builds the foreground notification displayed while the alarm is ringing.
-     */
-    @SuppressLint("FullScreenIntentPolicy")
-    private fun buildForegroundAlarmNotification(): Notification {
-        val notificationsEnabled = NotificationManagerCompat.from(this).areNotificationsEnabled()
-
-        val hasPostNotificationsPermission =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-            } else {
-                true
-            }
-
-        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        val channelImportance =
-            manager.getNotificationChannel(AlarmNotification.CHANNEL_ID)?.importance
-
-        Log.d(
-            TAG,
-            "notifEnabled=$notificationsEnabled, postPerm=$hasPostNotificationsPermission, channelImportance=$channelImportance"
-        )
-
-        if (!notificationsEnabled || !hasPostNotificationsPermission) {
-            throw IllegalStateException(
-                "Notifications are not allowed. notifEnabled=$notificationsEnabled, postPerm=$hasPostNotificationsPermission"
-            )
-        }
-
-        val activityIntent = Intent(this, RingingActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra(EXTRA_FALLBACK_AUDIO_ACTIVE, hasSwitchedToFallbackAudio)
-        }
-
-        val fullScreenPendingIntent = PendingIntent.getActivity(
-            this,
-            AlarmNotification.REQUEST_CODE_FULLSCREEN,
-            activityIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val stopIntent = Intent(this, PlaybackService::class.java).apply {
-            action = ACTION_STOP_ALARM
-        }
-        val stopPendingIntent = PendingIntent.getService(
-            this,
-            AlarmNotification.REQUEST_CODE_STOP,
-            stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        return NotificationCompat.Builder(this, AlarmNotification.CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText("Alarm ringing")
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setContentIntent(fullScreenPendingIntent)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
-            .addAction(R.drawable.ic_launcher_foreground, "Stop", stopPendingIntent)
-            .build()
-    }
-
-    /**
-     * Creates the notification channel used by the alarm notification.
-     */
-    private fun createNotificationChannelIfNeeded() {
-        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-
-        if (manager.getNotificationChannel(AlarmNotification.CHANNEL_ID) != null) return
-
-        val channel = NotificationChannel(
-            AlarmNotification.CHANNEL_ID,
-            AlarmNotification.CHANNEL_NAME,
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Alarm notifications"
-
-            // Alarm sound is handled by Media3 playback, not by the notification channel.
-            setSound(null, null)
-            enableVibration(false)
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-        }
-
-        manager.createNotificationChannel(channel)
     }
 
     override fun onDestroy() {

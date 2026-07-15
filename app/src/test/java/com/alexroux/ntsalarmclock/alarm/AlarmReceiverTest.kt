@@ -6,7 +6,6 @@ import android.os.PowerManager
 import android.util.Log
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
@@ -28,6 +27,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.time.DayOfWeek
 
 /**
  * Tests AlarmReceiver without starting real Android services.
@@ -78,7 +78,7 @@ class AlarmReceiverTest {
                 hour = 7,
                 minute = 30,
                 volume = 50,
-                enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR),
+                enabledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY),
                 progressiveVolume = true
             )
         )
@@ -114,7 +114,7 @@ class AlarmReceiverTest {
             scheduler.scheduleNextAlarm(
                 hour = 7,
                 minute = 30,
-                enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR)
+                enabledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)
             )
         }
         coVerify(exactly = 0) { repository.setEnabled(any()) }
@@ -181,7 +181,7 @@ class AlarmReceiverTest {
                 hour = 7,
                 minute = 30,
                 volume = 50,
-                enabledDays = setOf(DayOfWeekUi.TU),
+                enabledDays = setOf(DayOfWeek.TUESDAY),
                 progressiveVolume = false
             )
         )
@@ -278,7 +278,7 @@ class AlarmReceiverTest {
                 hour = 6,
                 minute = 45,
                 volume = 80,
-                enabledDays = setOf(DayOfWeekUi.TU, DayOfWeekUi.TH),
+                enabledDays = setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY),
                 progressiveVolume = true
             )
         )
@@ -318,7 +318,7 @@ class AlarmReceiverTest {
             scheduler.scheduleNextAlarm(
                 hour = 6,
                 minute = 45,
-                enabledDays = setOf(DayOfWeekUi.TU, DayOfWeekUi.TH)
+                enabledDays = setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY)
             )
         }
         coVerify(exactly = 0) { repository.setEnabled(any()) }

@@ -37,7 +37,7 @@ class AlarmNotificationInstrumentedTest {
 
         assertNotNull(channel)
         assertEquals(AlarmNotification.CHANNEL_ID, channel.id)
-        assertEquals(AlarmNotification.CHANNEL_NAME, channel.name)
+        assertEquals(context.getString(R.string.notification_channel_name), channel.name)
         assertEquals(NotificationManager.IMPORTANCE_HIGH, channel.importance)
         assertFalse(channel.shouldVibrate())
         assertNull(channel.sound)
@@ -49,7 +49,7 @@ class AlarmNotificationInstrumentedTest {
 
         // The notification shape matters for alarm visibility and for letting
         // the user stop playback directly from the notification.
-        val notification = AlarmNotification.buildAlarmNotification(context).build()
+        val notification = AlarmNotification.buildAlarmNotification(context)
 
         assertEquals(NotificationCompat.CATEGORY_ALARM, notification.category)
         assertEquals(Notification.VISIBILITY_PUBLIC, notification.visibility)
@@ -57,11 +57,17 @@ class AlarmNotificationInstrumentedTest {
             context.getString(R.string.app_name),
             notification.extras.getString(Notification.EXTRA_TITLE)
         )
-        assertEquals("Alarm ringing", notification.extras.getString(Notification.EXTRA_TEXT))
+        assertEquals(
+            context.getString(R.string.notification_alarm_ringing),
+            notification.extras.getString(Notification.EXTRA_TEXT)
+        )
         assertNotNull(notification.contentIntent)
         assertNotNull(notification.fullScreenIntent)
         assertEquals(1, notification.actions.size)
-        assertEquals("Stop", notification.actions[0].title.toString())
+        assertEquals(
+            context.getString(R.string.stop_alarm_button),
+            notification.actions[0].title.toString()
+        )
         assertNotNull(notification.actions[0].actionIntent)
         assertTrue(notification.flags and Notification.FLAG_ONGOING_EVENT != 0)
         assertTrue(notification.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0)

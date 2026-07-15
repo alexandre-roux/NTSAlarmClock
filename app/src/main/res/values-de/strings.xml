@@ -1,7 +1,24 @@
 <resources>
     <string name="time">ZEIT</string>
+    <string name="alarm_time">Weckzeit</string>
     <string name="volume">LAUTSTÄRKE</string>
     <string name="days">TAGE</string>
+    <string name="monday_short">Mo</string>
+    <string name="tuesday_short">Di</string>
+    <string name="wednesday_short">Mi</string>
+    <string name="thursday_short">Do</string>
+    <string name="friday_short">Fr</string>
+    <string name="saturday_short">Sa</string>
+    <string name="sunday_short">So</string>
+    <string name="monday">Montag</string>
+    <string name="tuesday">Dienstag</string>
+    <string name="wednesday">Mittwoch</string>
+    <string name="thursday">Donnerstag</string>
+    <string name="friday">Freitag</string>
+    <string name="saturday">Samstag</string>
+    <string name="sunday">Sonntag</string>
+    <string name="day_selected">Ausgewählt</string>
+    <string name="day_not_selected">Nicht ausgewählt</string>
     <string name="cancel_alarm">WECKER ABBRECHEN</string>
     <string name="set_alarm">WECKER STELLEN</string>
     <string name="progressive_volume">ANSTEIGENDE LAUTSTÄRKE</string>
@@ -11,6 +28,9 @@
     <string name="allow_notifications">BENACHRICHTIGUNGEN ERLAUBEN</string>
     <string name="open_settings">EINSTELLUNGEN ÖFFNEN</string>
     <string name="alarm_ringing">ZEIT ZUM EINSCHALTEN!</string>
+    <string name="notification_alarm_ringing">Wecker klingelt</string>
+    <string name="notification_channel_name">Wecker</string>
+    <string name="notification_channel_description">Benachrichtigungen, wenn der Wecker klingelt</string>
     <string name="offline_fallback_music_message">Diese Ersatzmusik wird abgespielt, weil NTS nicht wiedergegeben werden kann. Möglicherweise ist die Internetverbindung deaktiviert?</string>
     <string name="currently_playing">Aktuelle Wiedergabe: %1$s</string>
     <string name="overlay_permission_required">OVERLAY-BERECHTIGUNG ERFORDERLICH</string>
@@ -38,4 +58,5 @@
         <item quantity="one">%d Minute</item>
         <item quantity="other">%d Minuten</item>
     </plurals>
+    <string name="stop_alarm_button">STOPP</string>
 </resources>

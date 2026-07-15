@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.alexroux.ntsalarmclock.alarm.AlarmNotification.NOTIFICATION_ID
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.nts.NtsRepository
+import com.alexroux.ntsalarmclock.logging.NtsLogger
 import com.alexroux.ntsalarmclock.playback.PlaybackService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -17,10 +18,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
+
+private const val CURRENT_SHOW_REFRESH_INTERVAL_MS = 60_000L
 
 @HiltViewModel
 class RingScreenViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val repository: AlarmSettingsRepository,
     private val ntsRepository: NtsRepository
 ) : ViewModel() {
@@ -90,9 +94,17 @@ class RingScreenViewModel @Inject constructor(
     private fun startFetchingCurrentShow() {
         viewModelScope.launch {
             while (true) {
-                _currentShow.value = ntsRepository.getCurrentShow()
-                delay(60_000)
+                ntsRepository.getCurrentShow()
+                    .onSuccess { _currentShow.value = it }
+                    .onFailure { error ->
+                        NtsLogger.w(TAG, "Unable to refresh the current NTS show: ${error.message}")
+                    }
+                delay(CURRENT_SHOW_REFRESH_INTERVAL_MS.milliseconds)
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "RingScreenViewModel"
     }
 }
