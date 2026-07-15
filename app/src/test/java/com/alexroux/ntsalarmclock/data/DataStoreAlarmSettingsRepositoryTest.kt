@@ -96,8 +96,10 @@ class DataStoreAlarmSettingsRepositoryTest {
 
         repository.setEnabledDays(days)
 
+        val storedDays = dataStore.data.first()[stringSetPreferencesKey("alarm_enabled_days")]
         val settings = repository.settings.first()
 
+        assertEquals(setOf("MONDAY", "FRIDAY"), storedDays)
         assertEquals(days, settings.enabledDays)
     }
 
@@ -134,7 +136,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         // persisted data that bypassed the repository API.
         dataStore.edit { prefs ->
             prefs[stringSetPreferencesKey("alarm_enabled_days")] =
-                setOf("MO", "INVALID_DAY", "FR")
+                setOf("MONDAY", "MO", "INVALID_DAY", "FRIDAY")
         }
 
         val settings = repository.settings.first()
@@ -170,7 +172,8 @@ class DataStoreAlarmSettingsRepositoryTest {
             prefs[intPreferencesKey("alarm_hour")] = 5
             prefs[intPreferencesKey("alarm_minute")] = 20
             prefs[intPreferencesKey("alarm_volume")] = 15
-            prefs[stringSetPreferencesKey("alarm_enabled_days")] = setOf("TU", "TH")
+            prefs[stringSetPreferencesKey("alarm_enabled_days")] =
+                setOf("TUESDAY", "THURSDAY")
             prefs[booleanPreferencesKey("alarm_progressive_volume")] = true
         }
 
