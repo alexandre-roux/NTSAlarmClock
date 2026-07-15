@@ -14,12 +14,18 @@ import kotlinx.coroutines.flow.map
 import java.io.IOException
 import java.time.DayOfWeek
 
-/** Preferences DataStore implementation of [AlarmSettingsRepository]. */
+/**
+ * Persists [AlarmSettings] in a Preferences [DataStore].
+ *
+ * Missing preferences are replaced with application defaults. Read failures caused by I/O are
+ * also exposed as default settings, while unexpected failures are propagated to the collector.
+ */
 class DataStoreAlarmSettingsRepository(
     private val dataStore: DataStore<Preferences>
 ) : AlarmSettingsRepository {
 
     private companion object {
+        // Keys are kept stable because changing their names would orphan existing user settings.
         val KEY_ENABLED = booleanPreferencesKey("alarm_enabled")
         val KEY_HOUR = intPreferencesKey("alarm_hour")
         val KEY_MINUTE = intPreferencesKey("alarm_minute")
@@ -28,6 +34,7 @@ class DataStoreAlarmSettingsRepository(
         val KEY_PROGRESSIVE_VOLUME =
             booleanPreferencesKey("alarm_progressive_volume")
 
+        // Defaults used for a fresh install or when an I/O read falls back to empty preferences.
         const val DEFAULT_ENABLED = false
         const val DEFAULT_HOUR = 7
         const val DEFAULT_MINUTE = 0
@@ -37,9 +44,12 @@ class DataStoreAlarmSettingsRepository(
 
     private val TAG = "DataStoreAlarmSettingsRepository"
 
+    /** Emits a complete domain model whenever the underlying preferences change. */
     override val settings: Flow<AlarmSettings> =
         dataStore.data
             .catch { exception ->
+                // DataStore recommends recovering from storage I/O errors with empty preferences.
+                // Programming errors and cancellation-related failures must still reach the caller.
                 if (exception is IOException) {
                     Log.e(TAG, "Unable to read alarm settings; using defaults", exception)
                     emit(emptyPreferences())
@@ -49,8 +59,13 @@ class DataStoreAlarmSettingsRepository(
             }
             .map { prefs ->
                 Log.d(TAG, "Raw prefs = $prefs")
+
+                // Ignore unknown day values so one malformed entry does not invalidate all settings.
                 val rawDays = prefs[KEY_ENABLED_DAYS].orEmpty()
-                val enabledDays = rawDays.mapNotNull(::decodeDay).toSet()
+                val enabledDays = rawDays.mapNotNull { value ->
+                    runCatching { DayOfWeek.valueOf(value) }.getOrNull()
+                }.toSet()
+
                 AlarmSettings(
                     enabled = prefs[KEY_ENABLED] ?: DEFAULT_ENABLED,
                     hour = prefs[KEY_HOUR] ?: DEFAULT_HOUR,
@@ -62,6 +77,7 @@ class DataStoreAlarmSettingsRepository(
                 )
             }
 
+    /** Persists whether the alarm is enabled while preserving every other preference. */
     override suspend fun setEnabled(enabled: Boolean) {
         Log.d(TAG, "setEnabled: $enabled")
         dataStore.edit { prefs ->
@@ -69,6 +85,7 @@ class DataStoreAlarmSettingsRepository(
         }
     }
 
+    /** Persists the hour and minute together in one atomic DataStore transaction. */
     override suspend fun setTime(hour: Int, minute: Int) {
         Log.d(TAG, "setTime: $hour:$minute")
         dataStore.edit { prefs ->
@@ -77,6 +94,7 @@ class DataStoreAlarmSettingsRepository(
         }
     }
 
+    /** Persists the selected alarm volume percentage. */
     override suspend fun setVolume(volume: Int) {
         Log.d(TAG, "setVolume: $volume")
         dataStore.edit { prefs ->
@@ -84,15 +102,17 @@ class DataStoreAlarmSettingsRepository(
         }
     }
 
+    /** Persists the weekdays on which the alarm should repeat using their enum names. */
     override suspend fun setEnabledDays(days: Set<DayOfWeek>) {
         Log.d(TAG, "setEnabledDays: $days")
-        // Keep the original two-letter encoding so existing installations remain compatible.
-        val encoded = days.map(::encodeDay).toSet()
-        dataStore.edit { prefs ->
-            prefs[KEY_ENABLED_DAYS] = encoded
+        val dayNames = days.map { day -> day.name }.toSet()
+
+        dataStore.edit { preferences ->
+            preferences[KEY_ENABLED_DAYS] = dayNames
         }
     }
 
+    /** Persists whether playback should gradually increase to the selected volume. */
     override suspend fun setProgressiveVolume(progressiveVolumeEnabled: Boolean) {
         Log.d(TAG, "setProgressiveVolume: $progressiveVolumeEnabled")
         dataStore.edit { prefs ->
@@ -100,24 +120,4 @@ class DataStoreAlarmSettingsRepository(
         }
     }
 
-    private fun encodeDay(day: DayOfWeek): String = when (day) {
-        DayOfWeek.MONDAY -> "MO"
-        DayOfWeek.TUESDAY -> "TU"
-        DayOfWeek.WEDNESDAY -> "WE"
-        DayOfWeek.THURSDAY -> "TH"
-        DayOfWeek.FRIDAY -> "FR"
-        DayOfWeek.SATURDAY -> "SA"
-        DayOfWeek.SUNDAY -> "SU"
-    }
-
-    private fun decodeDay(value: String): DayOfWeek? = when (value) {
-        "MO", DayOfWeek.MONDAY.name -> DayOfWeek.MONDAY
-        "TU", DayOfWeek.TUESDAY.name -> DayOfWeek.TUESDAY
-        "WE", DayOfWeek.WEDNESDAY.name -> DayOfWeek.WEDNESDAY
-        "TH", DayOfWeek.THURSDAY.name -> DayOfWeek.THURSDAY
-        "FR", DayOfWeek.FRIDAY.name -> DayOfWeek.FRIDAY
-        "SA", DayOfWeek.SATURDAY.name -> DayOfWeek.SATURDAY
-        "SU", DayOfWeek.SUNDAY.name -> DayOfWeek.SUNDAY
-        else -> null
-    }
 }
