@@ -87,6 +87,7 @@ fun RingScreenContent(
         Text(
             text = stringResource(R.string.alarm_ringing),
             style = MaterialTheme.typography.displaySmall,
+            textAlign = TextAlign.Center,
             modifier = Modifier.semantics {
                 liveRegion = LiveRegionMode.Assertive
             }
@@ -136,7 +137,9 @@ fun RingScreenContent(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "Ring Screen - English", locale = "en")
+@Preview(showBackground = true, name = "Ring Screen - French", locale = "fr")
+@Preview(showBackground = true, name = "Ring Screen - German", locale = "de")
 @Composable
 fun RingScreenPreview() {
     NTSAlarmClockTheme {

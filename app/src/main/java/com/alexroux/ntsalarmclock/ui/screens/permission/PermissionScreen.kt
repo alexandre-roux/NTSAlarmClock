@@ -7,15 +7,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.NTSButton
+import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 
 /**
  * Renders the current permission step from ViewModel state.
@@ -135,5 +138,51 @@ fun OverlayPermissionScreen(
             textStyle = MaterialTheme.typography.headlineMedium,
             onClick = onAllowClick
         )
+    }
+}
+
+@Preview(showBackground = true, name = "Notifications Permission - English", locale = "en")
+@Preview(showBackground = true, name = "Notifications Permission - French", locale = "fr")
+@Preview(showBackground = true, name = "Notifications Permission - German", locale = "de")
+@Composable
+private fun PermissionScreenPreview() {
+    NTSAlarmClockTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            PermissionScreen(
+                deniedCount = 0,
+                onAllowClick = {},
+                onOpenSettingsClick = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Notifications Repeatedly Denied - English", locale = "en")
+@Preview(showBackground = true, name = "Notifications Repeatedly Denied - French", locale = "fr")
+@Preview(showBackground = true, name = "Notifications Repeatedly Denied - German", locale = "de")
+@Composable
+private fun PermissionScreenRepeatedlyDeniedPreview() {
+    NTSAlarmClockTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            PermissionScreen(
+                deniedCount = PermissionViewModel.NOTIFICATION_SETTINGS_DENIAL_THRESHOLD,
+                onAllowClick = {},
+                onOpenSettingsClick = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Overlay Permission - English", locale = "en")
+@Preview(showBackground = true, name = "Overlay Permission - French", locale = "fr")
+@Preview(showBackground = true, name = "Overlay Permission - German", locale = "de")
+@Composable
+private fun OverlayPermissionScreenPreview() {
+    NTSAlarmClockTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            OverlayPermissionScreen(
+                onAllowClick = {}
+            )
+        }
     }
 }

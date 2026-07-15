@@ -1,0 +1,41 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="time">HEURE</string>
+    <string name="volume">VOLUME</string>
+    <string name="days">JOURS</string>
+    <string name="cancel_alarm">ANNULER L\'ALARME</string>
+    <string name="set_alarm">RÉGLER L\'ALARME</string>
+    <string name="progressive_volume">VOLUME PROGRESSIF</string>
+    <string name="progressive_volume_description">L\'alarme commence doucement et augmente jusqu\'au volume défini</string>
+    <string name="notifications_permission_required">AUTORISATION DE NOTIFICATIONS REQUISE</string>
+    <string name="this_app_needs_notification_permission_to_work">Cette application a besoin de l\'autorisation de notifications pour pouvoir déclencher l\'alarme</string>
+    <string name="allow_notifications">AUTORISER LES NOTIFICATIONS</string>
+    <string name="open_settings">OUVRIR LES PARAMÈTRES</string>
+    <string name="alarm_ringing">C\'EST L\'HEURE D\'ÉCOUTER !</string>
+    <string name="offline_fallback_music_message">Cette musique de secours est diffusée parce que NTS ne peut pas être lu. Votre connexion Internet est peut-être désactivée ?</string>
+    <string name="currently_playing">Lecture en cours : %1$s</string>
+    <string name="overlay_permission_required">AUTORISATION DE SUPERPOSITION REQUISE</string>
+    <string name="overlay_permission_explanation">Cette application a besoin de l\'autorisation de superposition pour afficher l\'alarme à l\'écran</string>
+    <string name="allow_overlay">AUTORISER LA SUPERPOSITION</string>
+    <string name="play_stream_preview">Lire l\'aperçu du flux</string>
+    <string name="pause_stream_preview">Mettre l\'aperçu du flux en pause</string>
+    <string name="alarm_volume">Volume de l\'alarme</string>
+    <string name="preview_alarm_scheduled_in">Cette alarme est programmée dans 10 heures et 12 minutes</string>
+    <string name="alarm_disabled">L\'alarme est désactivée\n</string>
+    <string name="no_alarm_scheduled">Aucune alarme programmée</string>
+    <string name="alarm_scheduled_in">Cette alarme est programmée dans %1$s</string>
+    <string name="alarm_scheduled_in_less_than_minute">Cette alarme est programmée dans moins d\'une minute</string>
+    <string name="duration_separator">,</string>
+    <string name="duration_final_separator">et</string>
+    <plurals name="duration_days" tools:ignore="MissingQuantity">
+        <item quantity="one">%d jour</item>
+        <item quantity="other">%d jours</item>
+    </plurals>
+    <plurals name="duration_hours" tools:ignore="MissingQuantity">
+        <item quantity="one">%d heure</item>
+        <item quantity="other">%d heures</item>
+    </plurals>
+    <plurals name="duration_minutes" tools:ignore="MissingQuantity">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+</resources>

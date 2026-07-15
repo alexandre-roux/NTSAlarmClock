@@ -1,5 +1,6 @@
 package com.alexroux.ntsalarmclock.ui.screens.home
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,6 +11,7 @@ import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.playback.NTS_STREAM_URL
 import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -55,7 +57,8 @@ data class AlarmScheduleConfig(
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
     private val repository: AlarmSettingsRepository,
-    private val alarmScheduler: AlarmScheduler
+    private val alarmScheduler: AlarmScheduler,
+    @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
     /**
@@ -226,6 +229,7 @@ class HomeScreenViewModel @Inject constructor(
             progressiveVolume = progressiveVolume,
             streamUrl = NTS_STREAM_URL,
             scheduledInText = NextAlarmCalculator.buildScheduledInText(
+                resources = context.resources,
                 enabled = enabled,
                 hour = hour,
                 minute = minute,

@@ -1,8 +1,13 @@
 package com.alexroux.ntsalarmclock.alarm
 
+import android.content.res.Resources
+import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Before
 import org.junit.Test
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -14,6 +19,12 @@ import java.time.ZoneId
  * and weekday selection stay deterministic.
  */
 class NextAlarmCalculatorTest {
+    private val resources = mockk<Resources>()
+
+    @Before
+    fun setup() {
+        stubEnglishScheduledTextResources(resources)
+    }
 
     @Test
     fun oneShotAlarm_today() {
@@ -178,6 +189,7 @@ class NextAlarmCalculatorTest {
     @Test
     fun buildScheduledInText_disabledAlarm() {
         val text = NextAlarmCalculator.buildScheduledInText(
+            resources = resources,
             enabled = false,
             hour = 9,
             minute = 0,
@@ -191,6 +203,7 @@ class NextAlarmCalculatorTest {
     fun buildScheduledInText_fewHours() {
         val now = LocalDateTime.of(2024, 1, 1, 8, 0)
         val text = NextAlarmCalculator.buildScheduledInText(
+            resources = resources,
             enabled = true,
             hour = 10,
             minute = 30,
@@ -207,6 +220,7 @@ class NextAlarmCalculatorTest {
         // useful copy for the home screen.
         val now = LocalDateTime.of(2024, 1, 1, 8, 59, 30)
         val text = NextAlarmCalculator.buildScheduledInText(
+            resources = resources,
             enabled = true,
             hour = 9,
             minute = 0,
@@ -221,6 +235,7 @@ class NextAlarmCalculatorTest {
     fun buildScheduledInText_singularHour() {
         val now = LocalDateTime.of(2024, 1, 1, 8, 0)
         val text = NextAlarmCalculator.buildScheduledInText(
+            resources = resources,
             enabled = true,
             hour = 9,
             minute = 0,
@@ -235,6 +250,7 @@ class NextAlarmCalculatorTest {
     fun buildScheduledInText_singularMinute() {
         val now = LocalDateTime.of(2024, 1, 1, 8, 59)
         val text = NextAlarmCalculator.buildScheduledInText(
+            resources = resources,
             enabled = true,
             hour = 9,
             minute = 0,
@@ -249,6 +265,7 @@ class NextAlarmCalculatorTest {
     fun buildScheduledInText_mixedUnits() {
         val now = LocalDateTime.of(2024, 1, 1, 8, 59)
         val text = NextAlarmCalculator.buildScheduledInText(
+            resources = resources,
             enabled = true,
             hour = 10,
             minute = 0,
@@ -265,6 +282,7 @@ class NextAlarmCalculatorTest {
         // special-case "tomorrow" label or an off-by-one day calculation.
         val now = LocalDateTime.of(2024, 1, 1, 23, 50)
         val text = NextAlarmCalculator.buildScheduledInText(
+            resources = resources,
             enabled = true,
             hour = 0,
             minute = 10,
@@ -274,4 +292,64 @@ class NextAlarmCalculatorTest {
 
         assertEquals("This alarm is scheduled in 20 minutes", text)
     }
+
+    @Test
+    fun buildScheduledInText_includesDays() {
+        val now = LocalDateTime.of(2024, 1, 1, 8, 0)
+        val text = NextAlarmCalculator.buildScheduledInText(
+            resources = resources,
+            enabled = true,
+            hour = 9,
+            minute = 30,
+            enabledDays = setOf(DayOfWeekUi.WE),
+            now = now
+        )
+
+        assertEquals("This alarm is scheduled in 2 days, 1 hour and 30 minutes", text)
+    }
+
+    @Test
+    fun buildScheduledInText_singularDay() {
+        val now = LocalDateTime.of(2024, 1, 1, 8, 0)
+        val text = NextAlarmCalculator.buildScheduledInText(
+            resources = resources,
+            enabled = true,
+            hour = 8,
+            minute = 0,
+            enabledDays = emptySet(),
+            now = now
+        )
+
+        assertEquals("This alarm is scheduled in 1 day", text)
+    }
+
+    private fun stubEnglishScheduledTextResources(resources: Resources) {
+        every { resources.getString(R.string.alarm_disabled) } returns "Alarm is disabled"
+        every { resources.getString(R.string.no_alarm_scheduled) } returns "No alarm scheduled"
+        every { resources.getString(R.string.alarm_scheduled_in) } returns "This alarm is scheduled in %1\$s"
+        every {
+            resources.getString(R.string.alarm_scheduled_in_less_than_minute)
+        } returns "This alarm is scheduled in less than a minute"
+        every { resources.getString(R.string.duration_separator) } returns ","
+        every { resources.getString(R.string.duration_final_separator) } returns "and"
+        every {
+            resources.getQuantityText(R.plurals.duration_days, match { it == 1 })
+        } returns "%d day"
+        every {
+            resources.getQuantityText(R.plurals.duration_days, match { it != 1 })
+        } returns "%d days"
+        every {
+            resources.getQuantityText(R.plurals.duration_hours, match { it == 1 })
+        } returns "%d hour"
+        every {
+            resources.getQuantityText(R.plurals.duration_hours, match { it != 1 })
+        } returns "%d hours"
+        every {
+            resources.getQuantityText(R.plurals.duration_minutes, match { it == 1 })
+        } returns "%d minute"
+        every {
+            resources.getQuantityText(R.plurals.duration_minutes, match { it != 1 })
+        } returns "%d minutes"
+    }
 }
+

@@ -1,6 +1,9 @@
 package com.alexroux.ntsalarmclock.ui.screens.home
 
+import android.content.Context
+import android.content.res.Resources
 import android.util.Log
+import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.alarm.AlarmScheduler
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
@@ -40,6 +43,8 @@ class HomeScreenViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val repository = mockk<AlarmSettingsRepository>(relaxed = true)
     private val alarmScheduler = mockk<AlarmScheduler>(relaxed = true)
+    private val context = mockk<Context>()
+    private val resources = mockk<Resources>()
 
     private val settingsFlow = MutableStateFlow(
         AlarmSettings(
@@ -62,6 +67,8 @@ class HomeScreenViewModelTest {
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { repository.settings } returns settingsFlow
+        every { context.resources } returns resources
+        stubEnglishScheduledTextResources(resources)
     }
 
     @After
@@ -431,7 +438,37 @@ class HomeScreenViewModelTest {
     private fun createViewModel(): HomeScreenViewModel {
         return HomeScreenViewModel(
             repository = repository,
-            alarmScheduler = alarmScheduler
+            alarmScheduler = alarmScheduler,
+            context = context
         )
+    }
+
+    private fun stubEnglishScheduledTextResources(resources: Resources) {
+        every { resources.getString(R.string.alarm_disabled) } returns "Alarm is disabled"
+        every { resources.getString(R.string.no_alarm_scheduled) } returns "No alarm scheduled"
+        every { resources.getString(R.string.alarm_scheduled_in) } returns "This alarm is scheduled in %1\$s"
+        every {
+            resources.getString(R.string.alarm_scheduled_in_less_than_minute)
+        } returns "This alarm is scheduled in less than a minute"
+        every { resources.getString(R.string.duration_separator) } returns ","
+        every { resources.getString(R.string.duration_final_separator) } returns "and"
+        every {
+            resources.getQuantityText(R.plurals.duration_days, match { it == 1 })
+        } returns "%d day"
+        every {
+            resources.getQuantityText(R.plurals.duration_days, match { it != 1 })
+        } returns "%d days"
+        every {
+            resources.getQuantityText(R.plurals.duration_hours, match { it == 1 })
+        } returns "%d hour"
+        every {
+            resources.getQuantityText(R.plurals.duration_hours, match { it != 1 })
+        } returns "%d hours"
+        every {
+            resources.getQuantityText(R.plurals.duration_minutes, match { it == 1 })
+        } returns "%d minute"
+        every {
+            resources.getQuantityText(R.plurals.duration_minutes, match { it != 1 })
+        } returns "%d minutes"
     }
 }
