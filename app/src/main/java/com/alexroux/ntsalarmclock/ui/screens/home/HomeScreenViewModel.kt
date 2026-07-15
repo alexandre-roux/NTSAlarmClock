@@ -81,6 +81,13 @@ class HomeScreenViewModel @Inject constructor(
             .map { settings -> settings.toScheduleConfig() }
             .distinctUntilChanged()
 
+    private fun AlarmSettings.toScheduleConfig() = AlarmScheduleConfig(
+        enabled = enabled,
+        hour = hour,
+        minute = minute,
+        enabledDays = enabledDays
+    )
+
     init {
         observeAlarmScheduling()
     }
@@ -202,13 +209,6 @@ class HomeScreenViewModel @Inject constructor(
             block()
         }
     }
-
-    private fun AlarmSettings.toScheduleConfig() = AlarmScheduleConfig(
-        enabled = enabled,
-        hour = hour,
-        minute = minute,
-        enabledDays = enabledDays
-    )
 
     private fun AlarmSettings.toUiState() =
         HomeScreenUiState.Success(

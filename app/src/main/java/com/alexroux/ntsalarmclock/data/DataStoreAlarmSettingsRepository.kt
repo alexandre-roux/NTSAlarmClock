@@ -35,6 +35,7 @@ class DataStoreAlarmSettingsRepository(
         val KEY_ENABLED_DAYS = stringSetPreferencesKey("alarm_enabled_days")
         val KEY_PROGRESSIVE_VOLUME = booleanPreferencesKey("alarm_progressive_volume")
 
+        // Defaults define both the first-run state and the fallback for individually missing keys.
         const val DEFAULT_ENABLED = false
         const val DEFAULT_HOUR = 7
         const val DEFAULT_MINUTE = 0
@@ -45,6 +46,8 @@ class DataStoreAlarmSettingsRepository(
     override val settings: Flow<AlarmSettings> =
         dataStore.data
             .catch { exception ->
+                // DataStore recommends recovering from storage I/O errors with empty preferences.
+                // Programming errors and cancellation-related failures must still reach callers.
                 if (exception is IOException) {
                     Log.e(TAG, "Unable to read alarm settings; using defaults", exception)
                     emit(emptyPreferences())
@@ -65,6 +68,8 @@ class DataStoreAlarmSettingsRepository(
 
     override suspend fun setTime(hour: Int, minute: Int) {
         Log.d(TAG, "setTime: $hour:$minute")
+        // Keep both components in one transaction so collectors never observe a partially updated
+        // time composed of the new hour and the old minute (or vice versa).
         dataStore.edit { preferences ->
             preferences[KEY_HOUR] = hour
             preferences[KEY_MINUTE] = minute
@@ -80,6 +85,7 @@ class DataStoreAlarmSettingsRepository(
 
     override suspend fun setEnabledDays(days: Set<DayOfWeek>) {
         Log.d(TAG, "setEnabledDays: $days")
+        // Enum names are locale-independent and can be reconstructed without custom converters.
         val dayNames = days.map { day -> day.name }.toSet()
 
         dataStore.edit { preferences ->
@@ -95,6 +101,8 @@ class DataStoreAlarmSettingsRepository(
     }
 
     private fun Preferences.toAlarmSettings(): AlarmSettings {
+        // Preferences DataStore has no schema-level defaults, so apply them while mapping each
+        // emitted snapshot into the domain model.
         return AlarmSettings(
             enabled = this[KEY_ENABLED] ?: DEFAULT_ENABLED,
             hour = this[KEY_HOUR] ?: DEFAULT_HOUR,
