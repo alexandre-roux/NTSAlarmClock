@@ -19,6 +19,12 @@ import org.junit.Before
 import org.junit.Test
 import java.time.LocalDateTime
 
+/**
+ * JVM tests for AlarmScheduler's interaction with Android AlarmManager.
+ *
+ * Android framework entry points are mocked so the tests can verify scheduling
+ * calls without registering real alarms on a device.
+ */
 class AlarmSchedulerTest {
 
     private val context = mockk<Context>(relaxed = true)
@@ -30,6 +36,8 @@ class AlarmSchedulerTest {
 
     @Before
     fun setup() {
+        // AlarmScheduler obtains AlarmManager and PendingIntents internally, so
+        // those Android APIs are mocked before the scheduler is constructed.
         every { context.getSystemService(AlarmManager::class.java) } returns alarmManager
         every { alarmManager.canScheduleExactAlarms() } returns true
         every { alarmPendingIntent.cancel() } just runs
@@ -55,6 +63,8 @@ class AlarmSchedulerTest {
 
     @Test
     fun scheduleNextAlarm_callsCancelThenSchedules() {
+        // The calculator is mocked here because this test only verifies the
+        // Android scheduling side effect.
         mockkObject(NextAlarmCalculator)
 
         every {
@@ -82,7 +92,91 @@ class AlarmSchedulerTest {
     }
 
     @Test
+    fun scheduleNextAlarm_usesExactFallback_whenAlarmClockThrowsSecurityException() {
+        mockkObject(NextAlarmCalculator)
+
+        every {
+            NextAlarmCalculator.computeNextTriggerMillis(
+                now = any<LocalDateTime>(),
+                hour = any<Int>(),
+                minute = any<Int>(),
+                enabledDays = any<Set<DayOfWeekUi>>()
+            )
+        } returns 123456L
+        every {
+            alarmManager.setAlarmClock(any<AlarmManager.AlarmClockInfo>(), alarmPendingIntent)
+        } throws SecurityException("setAlarmClock denied")
+        every {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                123456L,
+                alarmPendingIntent
+            )
+        } just runs
+
+        scheduler.scheduleNextAlarm(
+            hour = 8,
+            minute = 0,
+            enabledDays = emptySet()
+        )
+
+        // Some OEM/API combinations reject setAlarmClock(); the scheduler should
+        // still try the exact while-idle fallback before giving up.
+        verify(exactly = 1) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                123456L,
+                alarmPendingIntent
+            )
+        }
+        verify(exactly = 0) {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, 123456L, alarmPendingIntent)
+        }
+    }
+
+    @Test
+    fun scheduleNextAlarm_usesInexactFallback_whenExactFallbackThrowsSecurityException() {
+        mockkObject(NextAlarmCalculator)
+
+        every {
+            NextAlarmCalculator.computeNextTriggerMillis(
+                now = any<LocalDateTime>(),
+                hour = any<Int>(),
+                minute = any<Int>(),
+                enabledDays = any<Set<DayOfWeekUi>>()
+            )
+        } returns 123456L
+        every {
+            alarmManager.setAlarmClock(any<AlarmManager.AlarmClockInfo>(), alarmPendingIntent)
+        } throws SecurityException("setAlarmClock denied")
+        every {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                123456L,
+                alarmPendingIntent
+            )
+        } throws SecurityException("exact fallback denied")
+        every {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, 123456L, alarmPendingIntent)
+        } just runs
+
+        scheduler.scheduleNextAlarm(
+            hour = 8,
+            minute = 0,
+            enabledDays = emptySet()
+        )
+
+        // The final fallback is intentionally inexact. It is less precise, but
+        // still better than dropping the alarm completely when exact APIs fail.
+        verify(exactly = 1) {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, 123456L, alarmPendingIntent)
+        }
+    }
+
+    @Test
     fun scheduleNextAlarm_doesNothingIfTriggerIsNull() {
+        // A null trigger means there is no valid future alarm to hand to
+        // AlarmManager.
         mockkObject(NextAlarmCalculator)
 
         every {

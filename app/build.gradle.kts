@@ -3,10 +3,10 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
-    kotlin("kapt")
+    alias(libs.plugins.legacy.kapt)
+    jacoco
 }
 
 val keystoreProperties = Properties()
@@ -22,12 +22,12 @@ val ciVersionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
 
 android {
     namespace = "com.alexroux.ntsalarmclock"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.alexroux.ntsalarmclock"
         minSdk = 27
-        targetSdk = 36
+        targetSdk = 37
         versionCode = ciVersionCode
         versionName = appVersionName
 
@@ -47,6 +47,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("release")
@@ -109,9 +114,65 @@ dependencies {
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+jacoco {
+    toolVersion = "0.8.13"
+}
+
+tasks.register<JacocoReport>("debugCoverageReport") {
+    group = "verification"
+    description = "Generates JaCoCo coverage reports for debug unit tests."
+
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    val coverageExclusions = listOf(
+        "**/R.class",
+        "**/R$*.class",
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/*Application*.*",
+        "**/*Activity*.*",
+        "**/*Receiver*.*",
+        "**/*Service*.*",
+        "**/*Module*.*",
+        "**/*_Factory*.*",
+        "**/*_Hilt*.*",
+        "**/*Hilt*.*",
+        "**/*Dagger*.*",
+        "**/*ComposableSingletons*.*"
+    )
+
+    val buildDir = layout.buildDirectory.get().asFile
+    classDirectories.setFrom(
+        files(
+            fileTree("$buildDir/intermediates/javac/debug/classes") {
+                exclude(coverageExclusions)
+            },
+            fileTree("$buildDir/tmp/kotlin-classes/debug") {
+                exclude(coverageExclusions)
+            }
+        )
+    )
+    sourceDirectories.setFrom(files("src/main/java"))
+    executionData.setFrom(
+        fileTree(buildDir) {
+            include(
+                "jacoco/testDebugUnitTest.exec",
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+            )
+        }
+    )
 }

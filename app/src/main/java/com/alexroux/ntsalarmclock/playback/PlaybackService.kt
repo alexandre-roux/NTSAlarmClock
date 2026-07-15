@@ -38,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val PROGRESSIVE_VOLUME_DURATION_MS = 60_000L
 private const val PROGRESSIVE_VOLUME_STEP_DELAY_MS = 1_000L
@@ -107,6 +108,11 @@ class PlaybackService : Service() {
      * Handles start and stop actions sent to the service.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(
+            TAG,
+            "onStartCommand: action=${intent?.action ?: "null"}, flags=$flags, startId=$startId"
+        )
+
         when (intent?.action) {
             ACTION_START_ALARM -> startAlarm()
             ACTION_STOP_ALARM -> stopAlarm()
@@ -152,6 +158,10 @@ class PlaybackService : Service() {
                 notification,
                 fgsType
             )
+            Log.d(
+                TAG,
+                "startForeground succeeded: notificationId=${AlarmNotification.NOTIFICATION_ID}, fgsType=$fgsType"
+            )
         } catch (t: Throwable) {
             Log.e(TAG, "startForeground failed, launching RingingActivity as fallback", t)
             launchRingingActivityAsFallback()
@@ -178,6 +188,10 @@ class PlaybackService : Service() {
                 putExtra(EXTRA_FALLBACK_AUDIO_ACTIVE, hasSwitchedToFallbackAudio)
             }
             startActivity(intent)
+            Log.d(
+                TAG,
+                "RingingActivity fallback launched: fallbackAudioActive=$hasSwitchedToFallbackAudio"
+            )
         } catch (t: Throwable) {
             Log.e(TAG, "launchRingingActivityAsFallback failed", t)
         }
@@ -206,7 +220,7 @@ class PlaybackService : Service() {
             val settings = repository.settings.first()
 
             // Convert the saved volume from 0..100 to the ExoPlayer range 0f..1f.
-            targetVolume = settings.volume.coerceIn(0, 100) / 100f
+            targetVolume = PlaybackServiceLogic.toPlayerVolume(settings.volume)
             progressiveVolumeEnabled = settings.progressiveVolume
             hasSwitchedToFallbackAudio = false
 
@@ -226,7 +240,10 @@ class PlaybackService : Service() {
             currentPlayer.repeatMode = Player.REPEAT_MODE_OFF
 
             // Start from zero when progressive volume is enabled.
-            val initialVolume = if (progressiveVolumeEnabled) 0f else targetVolume
+            val initialVolume = PlaybackServiceLogic.initialPlayerVolume(
+                targetVolumePercent = settings.volume,
+                progressiveVolumeEnabled = progressiveVolumeEnabled
+            )
 
             NTSPlayerFactory.prepareStream(
                 player = currentPlayer,
@@ -240,6 +257,10 @@ class PlaybackService : Service() {
             if (progressiveVolumeEnabled) {
                 startProgressiveVolume(targetVolume)
             }
+        }.invokeOnCompletion { throwable ->
+            if (throwable != null) {
+                Log.e(TAG, "startPlayback coroutine failed", throwable)
+            }
         }
     }
 
@@ -249,16 +270,22 @@ class PlaybackService : Service() {
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     @OptIn(UnstableApi::class)
     private fun switchToFallbackAudioIfNeeded() {
-        if (hasSwitchedToFallbackAudio) {
-            Log.w(TAG, "Fallback audio already active, ignoring additional player error")
-            return
-        }
+        val currentPlayer = player
+        if (!PlaybackServiceLogic.canSwitchToFallbackAudio(
+                hasSwitchedToFallbackAudio = hasSwitchedToFallbackAudio,
+                playerAvailable = currentPlayer != null
+            )
+        ) {
+            if (hasSwitchedToFallbackAudio) {
+                Log.w(TAG, "Fallback audio already active, ignoring additional player error")
+                return
+            }
 
-        val currentPlayer = player ?: run {
             Log.e(TAG, "Cannot switch to fallback audio because player is null")
             return
         }
 
+        val activePlayer = currentPlayer ?: return
         hasSwitchedToFallbackAudio = true
 
         Log.w(TAG, "Switching to fallback audio")
@@ -266,14 +293,14 @@ class PlaybackService : Service() {
         val fallbackMediaItem =
             MediaItem.fromUri("android.resource://$packageName/${R.raw.northern_glade}")
 
-        val currentVolume = currentPlayer.volume
+        val currentVolume = activePlayer.volume
 
         // Loop the local fallback track continuously while the alarm is ringing.
-        currentPlayer.repeatMode = Player.REPEAT_MODE_ONE
-        currentPlayer.setMediaItem(fallbackMediaItem)
-        currentPlayer.volume = currentVolume
-        currentPlayer.prepare()
-        currentPlayer.playWhenReady = true
+        activePlayer.repeatMode = Player.REPEAT_MODE_ONE
+        activePlayer.setMediaItem(fallbackMediaItem)
+        activePlayer.volume = currentVolume
+        activePlayer.prepare()
+        activePlayer.playWhenReady = true
 
         // Update the foreground notification so the fullscreen intent carries the new state.
         updateNotificationWithFallbackState()
@@ -284,18 +311,21 @@ class PlaybackService : Service() {
      */
     private fun startProgressiveVolume(targetVolume: Float) {
         progressiveVolumeJob?.cancel()
+        Log.d(TAG, "Starting progressive volume ramp: targetVolume=$targetVolume")
 
         progressiveVolumeJob = serviceScope.launch {
             val currentPlayer = player ?: return@launch
             val stepCount =
                 (PROGRESSIVE_VOLUME_DURATION_MS / PROGRESSIVE_VOLUME_STEP_DELAY_MS).toInt()
 
-            val volumeStep = targetVolume / stepCount
-
             repeat(stepCount) {
-                delay(PROGRESSIVE_VOLUME_STEP_DELAY_MS)
+                delay(PROGRESSIVE_VOLUME_STEP_DELAY_MS.milliseconds)
 
-                val updatedVolume = (currentPlayer.volume + volumeStep).coerceAtMost(targetVolume)
+                val updatedVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
+                    currentVolume = currentPlayer.volume,
+                    targetVolume = targetVolume,
+                    stepCount = stepCount
+                )
                 currentPlayer.volume = updatedVolume
 
                 if (updatedVolume >= targetVolume) {
@@ -304,6 +334,7 @@ class PlaybackService : Service() {
             }
 
             currentPlayer.volume = targetVolume
+            Log.d(TAG, "Progressive volume ramp completed: targetVolume=$targetVolume")
         }
     }
 
@@ -313,8 +344,8 @@ class PlaybackService : Service() {
     private fun setAbsoluteVolume(volume: Int) {
         val currentPlayer = player ?: return
 
-        val sanitizedVolume = volume.coerceIn(0, 100)
-        val normalized = sanitizedVolume / 100f
+        val sanitizedVolume = PlaybackServiceLogic.coerceVolumePercent(volume)
+        val normalized = PlaybackServiceLogic.toPlayerVolume(sanitizedVolume)
 
         progressiveVolumeJob?.cancel()
         progressiveVolumeJob = null
@@ -325,6 +356,7 @@ class PlaybackService : Service() {
 
         serviceScope.launch {
             repository.setVolume(sanitizedVolume)
+            Log.d(TAG, "Persisted absolute volume: $sanitizedVolume")
         }
 
         Log.d(TAG, "Absolute volume set: $normalized")
@@ -341,13 +373,17 @@ class PlaybackService : Service() {
         progressiveVolumeJob = null
         progressiveVolumeEnabled = false
 
-        val updatedVolume = (currentPlayer.volume + delta).coerceIn(0f, 1f)
+        val updatedVolume = PlaybackServiceLogic.applyManualVolumeDelta(
+            currentVolume = currentPlayer.volume,
+            delta = delta
+        )
         currentPlayer.volume = updatedVolume
         targetVolume = updatedVolume
 
         serviceScope.launch {
             val volumeInt = (updatedVolume * 100).toInt()
             repository.setVolume(volumeInt)
+            Log.d(TAG, "Persisted manual volume change: $volumeInt")
         }
 
         Log.d(TAG, "Manual volume change applied: volume=$updatedVolume")
@@ -357,6 +393,7 @@ class PlaybackService : Service() {
      * Stops playback and releases the current player instance.
      */
     private fun stopPlayback() {
+        Log.d(TAG, "stopPlayback: playerAvailable=${player != null}")
         progressiveVolumeJob?.cancel()
         progressiveVolumeJob = null
 

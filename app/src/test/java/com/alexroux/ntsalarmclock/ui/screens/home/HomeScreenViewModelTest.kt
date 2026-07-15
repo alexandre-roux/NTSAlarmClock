@@ -28,6 +28,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
+/**
+ * JVM tests for HomeScreenViewModel state, persistence commands, and scheduling.
+ *
+ * A MutableStateFlow stands in for the repository, while a test dispatcher keeps
+ * StateFlow collection and scheduler side effects deterministic.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeScreenViewModelTest {
 
@@ -48,7 +54,11 @@ class HomeScreenViewModelTest {
 
     @Before
     fun setup() {
+        // The ViewModel launches work on Dispatchers.Main during collection, so
+        // Main is replaced before each test constructs the ViewModel.
         Dispatchers.setMain(testDispatcher)
+
+        // Mock Log because android.util.Log is a framework stub in local unit tests.
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { repository.settings } returns settingsFlow
@@ -69,6 +79,8 @@ class HomeScreenViewModelTest {
     @Test
     fun state_becomesSuccess_afterRepositoryEmits() = runTest {
         val viewModel = createViewModel()
+
+        // StateFlow is lazy here; collecting it starts repository observation.
         val job = backgroundScope.launch { viewModel.uiState.collect() }
 
         advanceUntilIdle()
@@ -92,6 +104,9 @@ class HomeScreenViewModelTest {
         val job = backgroundScope.launch { viewModel.uiState.collect() }
 
         advanceUntilIdle()
+
+        // Ignore interactions caused by initial collection so the verification
+        // only covers the user action under test.
         clearMocks(repository, alarmScheduler)
 
         viewModel.onTimeChange(9, 30)
@@ -323,6 +338,7 @@ class HomeScreenViewModelTest {
         advanceUntilIdle()
         clearMocks(repository, alarmScheduler)
 
+        // Volume changes are playback settings and should not touch AlarmManager.
         settingsFlow.value = settingsFlow.value.copy(volume = 80)
         advanceUntilIdle()
 
