@@ -3,7 +3,6 @@ package com.alexroux.ntsalarmclock.alarm
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -17,6 +16,7 @@ import io.mockk.verify
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.time.DayOfWeek
 import java.time.LocalDateTime
 
 /**
@@ -72,7 +72,7 @@ class AlarmSchedulerTest {
                 now = any<LocalDateTime>(),
                 hour = any<Int>(),
                 minute = any<Int>(),
-                enabledDays = any<Set<DayOfWeekUi>>()
+                enabledDays = any<Set<DayOfWeek>>()
             )
         } returns 123456L
 
@@ -100,7 +100,7 @@ class AlarmSchedulerTest {
                 now = any<LocalDateTime>(),
                 hour = any<Int>(),
                 minute = any<Int>(),
-                enabledDays = any<Set<DayOfWeekUi>>()
+                enabledDays = any<Set<DayOfWeek>>()
             )
         } returns 123456L
         every {
@@ -143,7 +143,7 @@ class AlarmSchedulerTest {
                 now = any<LocalDateTime>(),
                 hour = any<Int>(),
                 minute = any<Int>(),
-                enabledDays = any<Set<DayOfWeekUi>>()
+                enabledDays = any<Set<DayOfWeek>>()
             )
         } returns 123456L
         every {
@@ -184,7 +184,7 @@ class AlarmSchedulerTest {
                 now = any<LocalDateTime>(),
                 hour = any<Int>(),
                 minute = any<Int>(),
-                enabledDays = any<Set<DayOfWeekUi>>()
+                enabledDays = any<Set<DayOfWeek>>()
             )
         } returns null
 

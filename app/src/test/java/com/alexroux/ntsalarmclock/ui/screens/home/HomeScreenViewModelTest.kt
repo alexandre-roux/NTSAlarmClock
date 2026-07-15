@@ -1,14 +1,10 @@
 package com.alexroux.ntsalarmclock.ui.screens.home
 
-import android.content.Context
-import android.content.res.Resources
 import android.util.Log
-import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.alarm.AlarmScheduler
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.playback.NTS_STREAM_URL
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import io.mockk.clearMocks
 import io.mockk.coVerify
 import io.mockk.confirmVerified
@@ -30,6 +26,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.DayOfWeek
 
 /**
  * JVM tests for HomeScreenViewModel state, persistence commands, and scheduling.
@@ -43,8 +40,7 @@ class HomeScreenViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val repository = mockk<AlarmSettingsRepository>(relaxed = true)
     private val alarmScheduler = mockk<AlarmScheduler>(relaxed = true)
-    private val context = mockk<Context>()
-    private val resources = mockk<Resources>()
+    private val scheduleTextFormatter = mockk<AlarmScheduleTextFormatter>()
 
     private val settingsFlow = MutableStateFlow(
         AlarmSettings(
@@ -67,8 +63,9 @@ class HomeScreenViewModelTest {
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { repository.settings } returns settingsFlow
-        every { context.resources } returns resources
-        stubEnglishScheduledTextResources(resources)
+        every {
+            scheduleTextFormatter.format(any(), any(), any(), any(), any())
+        } returns "Alarm is disabled"
     }
 
     @After
@@ -97,7 +94,7 @@ class HomeScreenViewModelTest {
         assertEquals(0, state.minute)
         assertEquals(false, state.enabled)
         assertEquals(50, state.volume)
-        assertEquals(emptySet<DayOfWeekUi>(), state.enabledDays)
+        assertEquals(emptySet<DayOfWeek>(), state.enabledDays)
         assertEquals(false, state.progressiveVolume)
         assertEquals(NTS_STREAM_URL, state.streamUrl)
         assertEquals("Alarm is disabled", state.scheduledInText)
@@ -156,16 +153,16 @@ class HomeScreenViewModelTest {
         advanceUntilIdle()
         clearMocks(repository, alarmScheduler)
 
-        viewModel.onToggleDay(DayOfWeekUi.MO)
+        viewModel.onToggleDay(DayOfWeek.MONDAY)
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { repository.setEnabledDays(setOf(DayOfWeekUi.MO)) }
+        coVerify(exactly = 1) { repository.setEnabledDays(setOf(DayOfWeek.MONDAY)) }
         job.cancel()
     }
 
     @Test
     fun onToggleDay_removesDay_ifPresent() = runTest {
-        settingsFlow.value = settingsFlow.value.copy(enabledDays = setOf(DayOfWeekUi.MO))
+        settingsFlow.value = settingsFlow.value.copy(enabledDays = setOf(DayOfWeek.MONDAY))
 
         val viewModel = createViewModel()
         val job = backgroundScope.launch { viewModel.uiState.collect() }
@@ -173,7 +170,7 @@ class HomeScreenViewModelTest {
         advanceUntilIdle()
         clearMocks(repository, alarmScheduler)
 
-        viewModel.onToggleDay(DayOfWeekUi.MO)
+        viewModel.onToggleDay(DayOfWeek.MONDAY)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { repository.setEnabledDays(emptySet()) }
@@ -266,7 +263,7 @@ class HomeScreenViewModelTest {
             enabled = true,
             hour = 7,
             minute = 15,
-            enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR)
+            enabledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)
         )
 
         val viewModel = createViewModel()
@@ -278,7 +275,7 @@ class HomeScreenViewModelTest {
             alarmScheduler.scheduleNextAlarm(
                 hour = 7,
                 minute = 15,
-                enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR)
+                enabledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)
             )
         }
 
@@ -421,14 +418,14 @@ class HomeScreenViewModelTest {
         advanceUntilIdle()
         clearMocks(repository, alarmScheduler)
 
-        settingsFlow.value = settingsFlow.value.copy(enabledDays = setOf(DayOfWeekUi.TU))
+        settingsFlow.value = settingsFlow.value.copy(enabledDays = setOf(DayOfWeek.TUESDAY))
         advanceUntilIdle()
 
         coVerify(exactly = 1) {
             alarmScheduler.scheduleNextAlarm(
                 hour = 8,
                 minute = 0,
-                enabledDays = setOf(DayOfWeekUi.TU)
+                enabledDays = setOf(DayOfWeek.TUESDAY)
             )
         }
 
@@ -439,36 +436,7 @@ class HomeScreenViewModelTest {
         return HomeScreenViewModel(
             repository = repository,
             alarmScheduler = alarmScheduler,
-            context = context
+            scheduleTextFormatter = scheduleTextFormatter
         )
-    }
-
-    private fun stubEnglishScheduledTextResources(resources: Resources) {
-        every { resources.getString(R.string.alarm_disabled) } returns "Alarm is disabled"
-        every { resources.getString(R.string.no_alarm_scheduled) } returns "No alarm scheduled"
-        every { resources.getString(R.string.alarm_scheduled_in) } returns "This alarm is scheduled in %1\$s"
-        every {
-            resources.getString(R.string.alarm_scheduled_in_less_than_minute)
-        } returns "This alarm is scheduled in less than a minute"
-        every { resources.getString(R.string.duration_separator) } returns ","
-        every { resources.getString(R.string.duration_final_separator) } returns "and"
-        every {
-            resources.getQuantityText(R.plurals.duration_days, match { it == 1 })
-        } returns "%d day"
-        every {
-            resources.getQuantityText(R.plurals.duration_days, match { it != 1 })
-        } returns "%d days"
-        every {
-            resources.getQuantityText(R.plurals.duration_hours, match { it == 1 })
-        } returns "%d hour"
-        every {
-            resources.getQuantityText(R.plurals.duration_hours, match { it != 1 })
-        } returns "%d hours"
-        every {
-            resources.getQuantityText(R.plurals.duration_minutes, match { it == 1 })
-        } returns "%d minute"
-        every {
-            resources.getQuantityText(R.plurals.duration_minutes, match { it != 1 })
-        } returns "%d minutes"
     }
 }

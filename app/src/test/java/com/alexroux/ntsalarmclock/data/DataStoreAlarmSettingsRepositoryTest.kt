@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import io.mockk.every
 import io.mockk.mockkStatic
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,6 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.nio.file.Files
+import java.time.DayOfWeek
 
 /**
  * Repository tests backed by a real temporary Preferences DataStore.
@@ -92,7 +92,7 @@ class DataStoreAlarmSettingsRepositoryTest {
     fun setEnabledDaysUpdatesDataStore() = runTest {
         val dataStore = createDataStore(this)
         val repository = DataStoreAlarmSettingsRepository(dataStore)
-        val days = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR)
+        val days = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)
 
         repository.setEnabledDays(days)
 
@@ -139,7 +139,7 @@ class DataStoreAlarmSettingsRepositoryTest {
 
         val settings = repository.settings.first()
 
-        assertEquals(setOf(DayOfWeekUi.MO, DayOfWeekUi.FR), settings.enabledDays)
+        assertEquals(setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY), settings.enabledDays)
     }
 
     @Test
@@ -180,7 +180,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertEquals(5, settings.hour)
         assertEquals(20, settings.minute)
         assertEquals(15, settings.volume)
-        assertEquals(setOf(DayOfWeekUi.TU, DayOfWeekUi.TH), settings.enabledDays)
+        assertEquals(setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY), settings.enabledDays)
         assertTrue(settings.progressiveVolume)
     }
 }

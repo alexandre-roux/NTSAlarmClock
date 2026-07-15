@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -22,6 +23,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.alexroux.ntsalarmclock.R
+import java.time.DayOfWeek
 
 /**
  * Row displaying the seven selectable days of the week.
@@ -32,8 +35,8 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun DaysOfWeekRow(
-    selectedDays: Set<DayOfWeekUi>,
-    onToggleDay: (DayOfWeekUi) -> Unit,
+    selectedDays: Set<DayOfWeek>,
+    onToggleDay: (DayOfWeek) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -41,13 +44,12 @@ fun DaysOfWeekRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Render one button for each day of the week.
-        DayOfWeekUi.entries.forEach { day ->
+        DayOfWeek.entries.forEach { day ->
             val isSelected = day in selectedDays
 
             DayButton(
-                label = day.shortLabel,
-                dayName = day.accessibilityLabel,
+                label = stringResource(day.shortLabelResource),
+                dayName = stringResource(day.fullLabelResource),
                 selected = isSelected,
                 onClick = { onToggleDay(day) },
             )
@@ -71,10 +73,11 @@ private fun DayButton(
     modifier: Modifier = Modifier,
 ) {
     val shape = RectangleShape
-
     val backgroundColor = if (selected) Color.White else Color.Black
     val textColor = if (selected) Color.Black else Color.White
     val border = if (selected) null else BorderStroke(1.dp, Color.White)
+    val selectedDescription = stringResource(R.string.day_selected)
+    val notSelectedDescription = stringResource(R.string.day_not_selected)
 
     Row(
         modifier = modifier
@@ -82,7 +85,7 @@ private fun DayButton(
             .semantics(mergeDescendants = true) {
                 role = Role.Button
                 contentDescription = dayName
-                stateDescription = if (selected) "Selected" else "Not selected"
+                stateDescription = if (selected) selectedDescription else notSelectedDescription
             }
             .clip(shape)
             .background(backgroundColor)
@@ -102,13 +105,24 @@ private fun DayButton(
     }
 }
 
-private val DayOfWeekUi.accessibilityLabel: String
+private val DayOfWeek.shortLabelResource: Int
     get() = when (this) {
-        DayOfWeekUi.MO -> "Monday"
-        DayOfWeekUi.TU -> "Tuesday"
-        DayOfWeekUi.WE -> "Wednesday"
-        DayOfWeekUi.TH -> "Thursday"
-        DayOfWeekUi.FR -> "Friday"
-        DayOfWeekUi.SA -> "Saturday"
-        DayOfWeekUi.SU -> "Sunday"
+        DayOfWeek.MONDAY -> R.string.monday_short
+        DayOfWeek.TUESDAY -> R.string.tuesday_short
+        DayOfWeek.WEDNESDAY -> R.string.wednesday_short
+        DayOfWeek.THURSDAY -> R.string.thursday_short
+        DayOfWeek.FRIDAY -> R.string.friday_short
+        DayOfWeek.SATURDAY -> R.string.saturday_short
+        DayOfWeek.SUNDAY -> R.string.sunday_short
+    }
+
+private val DayOfWeek.fullLabelResource: Int
+    get() = when (this) {
+        DayOfWeek.MONDAY -> R.string.monday
+        DayOfWeek.TUESDAY -> R.string.tuesday
+        DayOfWeek.WEDNESDAY -> R.string.wednesday
+        DayOfWeek.THURSDAY -> R.string.thursday
+        DayOfWeek.FRIDAY -> R.string.friday
+        DayOfWeek.SATURDAY -> R.string.saturday
+        DayOfWeek.SUNDAY -> R.string.sunday
     }

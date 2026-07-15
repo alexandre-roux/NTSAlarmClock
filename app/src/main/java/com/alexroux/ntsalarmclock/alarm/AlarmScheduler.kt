@@ -7,8 +7,8 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.alexroux.ntsalarmclock.RingingActivity
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import java.text.DateFormat
+import java.time.DayOfWeek
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -32,7 +32,7 @@ class AlarmScheduler(private val context: Context) {
     fun scheduleNextAlarm(
         hour: Int,
         minute: Int,
-        enabledDays: Set<DayOfWeekUi>
+        enabledDays: Set<DayOfWeek>
     ) {
         Log.d(
             TAG,

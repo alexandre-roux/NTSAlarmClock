@@ -1,7 +1,7 @@
 package com.alexroux.ntsalarmclock.data
 
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import kotlinx.coroutines.flow.Flow
+import java.time.DayOfWeek
 
 /**
  * Data model representing all alarm settings.
@@ -21,7 +21,7 @@ data class AlarmSettings(
     val volume: Int,
 
     /** Days of the week when the alarm should trigger */
-    val enabledDays: Set<DayOfWeekUi> = emptySet(),
+    val enabledDays: Set<DayOfWeek> = emptySet(),
 
     /** Whether progressive volume is enabled */
     val progressiveVolume: Boolean
@@ -61,7 +61,7 @@ interface AlarmSettingsRepository {
     /**
      * Update the enabled days for the alarm.
      */
-    suspend fun setEnabledDays(days: Set<DayOfWeekUi>)
+    suspend fun setEnabledDays(days: Set<DayOfWeek>)
 
     /**
      * Enable or disable progressive volume.

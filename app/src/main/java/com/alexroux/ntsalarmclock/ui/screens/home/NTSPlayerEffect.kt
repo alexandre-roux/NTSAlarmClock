@@ -9,6 +9,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.alexroux.ntsalarmclock.playback.NTSPlayerFactory
+import com.alexroux.ntsalarmclock.playback.PlaybackServiceLogic
 
 /**
  * Compose side-effect that hosts a lightweight ExoPlayer instance used
@@ -37,26 +38,19 @@ fun NTSPlayerEffect(
     }
 
     /**
-     * Convert the app volume (0..100) into ExoPlayer's expected range (0f..1f).
-     */
-    fun toPlayerVolume(percent: Int): Float {
-        return (percent.coerceIn(0, 100) / 100f).coerceIn(0f, 1f)
-    }
-
-    /**
      * Prepare the player once when the composable enters the composition.
      * This avoids restarting the stream on every recomposition.
      */
     LaunchedEffect(Unit) {
         NTSPlayerFactory.prepareStream(
             player = player,
-            volume = toPlayerVolume(volumePercent)
+            volume = PlaybackServiceLogic.toPlayerVolume(volumePercent)
         )
     }
 
     // Update the player volume when the UI volume changes
     LaunchedEffect(volumePercent) {
-        player.volume = toPlayerVolume(volumePercent)
+        player.volume = PlaybackServiceLogic.toPlayerVolume(volumePercent)
     }
 
     // Start or pause playback depending on the requested state

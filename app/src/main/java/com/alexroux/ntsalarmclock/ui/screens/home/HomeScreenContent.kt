@@ -20,13 +20,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexroux.ntsalarmclock.R
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import com.alexroux.ntsalarmclock.ui.screens.home.components.HomeDaysSection
 import com.alexroux.ntsalarmclock.ui.screens.home.components.HomeEnableAlarmButton
 import com.alexroux.ntsalarmclock.ui.screens.home.components.HomeProgressiveVolumeSection
 import com.alexroux.ntsalarmclock.ui.screens.home.components.HomeTimeSection
 import com.alexroux.ntsalarmclock.ui.screens.home.components.HomeVolumeSection
 import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
+import java.time.DayOfWeek
 
 @Composable
 fun HomeScreenContent(
@@ -35,7 +35,7 @@ fun HomeScreenContent(
     volumeLive: Int,
     onPlayPauseClick: () -> Unit,
     onTimeChange: (Int, Int) -> Unit,
-    onToggleDay: (DayOfWeekUi) -> Unit,
+    onToggleDay: (DayOfWeek) -> Unit,
     onVolumeLiveChange: (Int) -> Unit,
     onVolumeChangeFinished: (Int) -> Unit,
     onAlarmEnabledClick: () -> Unit,
@@ -98,7 +98,11 @@ private fun HomeScreenContentAlarmSetPreview() {
                     minute = 0,
                     volume = 70,
                     streamUrl = "https://stream-relay-geo.ntslive.net/stream",
-                    enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.WE, DayOfWeekUi.FR),
+                    enabledDays = setOf(
+                        DayOfWeek.MONDAY,
+                        DayOfWeek.WEDNESDAY,
+                        DayOfWeek.FRIDAY
+                    ),
                     progressiveVolume = false,
                     scheduledInText = stringResource(R.string.preview_alarm_scheduled_in)
                 ),

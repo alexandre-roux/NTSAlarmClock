@@ -1,17 +1,13 @@
 package com.alexroux.ntsalarmclock.ui.screens.home
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.alexroux.ntsalarmclock.alarm.AlarmScheduler
-import com.alexroux.ntsalarmclock.alarm.NextAlarmCalculator
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.playback.NTS_STREAM_URL
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +15,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import javax.inject.Inject
 
 private const val TAG = "HomeScreenViewModel"
@@ -34,7 +31,7 @@ sealed interface HomeScreenUiState {
         val hour: Int,
         val minute: Int,
         val volume: Int,
-        val enabledDays: Set<DayOfWeekUi>,
+        val enabledDays: Set<DayOfWeek>,
         val progressiveVolume: Boolean,
         val streamUrl: String,
         val scheduledInText: String
@@ -51,14 +48,14 @@ data class AlarmScheduleConfig(
     val enabled: Boolean,
     val hour: Int,
     val minute: Int,
-    val enabledDays: Set<DayOfWeekUi>
+    val enabledDays: Set<DayOfWeek>
 )
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
     private val repository: AlarmSettingsRepository,
     private val alarmScheduler: AlarmScheduler,
-    @param:ApplicationContext private val context: Context
+    private val scheduleTextFormatter: AlarmScheduleTextFormatter
 ) : ViewModel() {
 
     /**
@@ -146,7 +143,7 @@ class HomeScreenViewModel @Inject constructor(
     /**
      * Toggle a day in the selected recurring days set.
      */
-    fun onToggleDay(day: DayOfWeekUi) {
+    fun onToggleDay(day: DayOfWeek) {
         withSuccessState { state ->
             val updatedDays = state.enabledDays.toMutableSet().apply {
                 if (contains(day)) {
@@ -228,8 +225,7 @@ class HomeScreenViewModel @Inject constructor(
             enabledDays = enabledDays,
             progressiveVolume = progressiveVolume,
             streamUrl = NTS_STREAM_URL,
-            scheduledInText = NextAlarmCalculator.buildScheduledInText(
-                resources = context.resources,
+            scheduledInText = scheduleTextFormatter.format(
                 enabled = enabled,
                 hour = hour,
                 minute = minute,

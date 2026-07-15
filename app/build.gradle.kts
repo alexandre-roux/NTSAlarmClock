@@ -158,10 +158,14 @@ tasks.register<JacocoReport>("debugCoverageReport") {
     val buildDir = layout.buildDirectory.get().asFile
     classDirectories.setFrom(
         files(
-            fileTree("$buildDir/intermediates/javac/debug/classes") {
+            fileTree(
+                "$buildDir/intermediates/javac/debug/compileDebugJavaWithJavac/classes"
+            ) {
                 exclude(coverageExclusions)
             },
-            fileTree("$buildDir/tmp/kotlin-classes/debug") {
+            fileTree(
+                "$buildDir/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
+            ) {
                 exclude(coverageExclusions)
             }
         )
