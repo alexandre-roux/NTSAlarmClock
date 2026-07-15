@@ -16,8 +16,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import com.alexroux.ntsalarmclock.ui.screens.home.components.HomeDaysSection
 import com.alexroux.ntsalarmclock.ui.screens.home.components.HomeEnableAlarmButton
@@ -82,9 +84,11 @@ fun HomeScreenContent(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "Home Screen - English", locale = "en")
+@Preview(showBackground = true, name = "Home Screen - French", locale = "fr")
+@Preview(showBackground = true, name = "Home Screen - German", locale = "de")
 @Composable
-private fun HomeScreenContentPreview() {
+private fun HomeScreenContentAlarmSetPreview() {
     NTSAlarmClockTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             HomeScreenContent(
@@ -96,7 +100,39 @@ private fun HomeScreenContentPreview() {
                     streamUrl = "https://stream-relay-geo.ntslive.net/stream",
                     enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.WE, DayOfWeekUi.FR),
                     progressiveVolume = false,
-                    scheduledInText = "This alarm is scheduled in 10 hours and 12 minutes"
+                    scheduledInText = stringResource(R.string.preview_alarm_scheduled_in)
+                ),
+                isPlaying = false,
+                volumeLive = 70,
+                onPlayPauseClick = {},
+                onTimeChange = { _, _ -> },
+                onToggleDay = {},
+                onVolumeLiveChange = {},
+                onVolumeChangeFinished = {},
+                onAlarmEnabledClick = {},
+                onProgressiveVolumeEnabledChange = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Home Screen Not Set - English", locale = "en")
+@Preview(showBackground = true, name = "Home Screen Not Set - French", locale = "fr")
+@Preview(showBackground = true, name = "Home Screen Not Set - German", locale = "de")
+@Composable
+private fun HomeScreenContentAlarmNotSetPreview() {
+    NTSAlarmClockTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            HomeScreenContent(
+                state = HomeScreenUiState.Success(
+                    enabled = false,
+                    hour = 7,
+                    minute = 0,
+                    volume = 70,
+                    streamUrl = "https://stream-relay-geo.ntslive.net/stream",
+                    enabledDays = emptySet(),
+                    progressiveVolume = false,
+                    scheduledInText = ""
                 ),
                 isPlaying = false,
                 volumeLive = 70,

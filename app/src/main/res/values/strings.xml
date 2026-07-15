@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">NTS Alarm Clock</string>
+    <string name="app_name" translatable="false">NTS Alarm Clock</string>
     <string name="time">TIME</string>
     <string name="volume">VOLUME</string>
     <string name="days">DAYS</string>
@@ -20,5 +20,24 @@
     <string name="play_stream_preview">Play stream preview</string>
     <string name="pause_stream_preview">Pause stream preview</string>
     <string name="alarm_volume">Alarm volume</string>
-    <string name="stop_alarm_button">STOP</string>
+    <string name="preview_alarm_scheduled_in">This alarm is scheduled in 10 hours and 12 minutes</string>
+    <string name="alarm_disabled">Alarm is disabled\n</string>
+    <string name="no_alarm_scheduled">No alarm scheduled</string>
+    <string name="alarm_scheduled_in">This alarm is scheduled in %1$s</string>
+    <string name="alarm_scheduled_in_less_than_minute">This alarm is scheduled in less than a minute</string>
+    <string name="duration_separator">,</string>
+    <string name="duration_final_separator">and</string>
+    <plurals name="duration_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <plurals name="duration_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <string name="stop_alarm_button" translatable="false">STOP</string>
 </resources>

@@ -1,5 +1,7 @@
 package com.alexroux.ntsalarmclock.alarm
 
+import android.content.res.Resources
+import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import java.time.DayOfWeek
 import java.time.Duration
@@ -83,6 +85,7 @@ object NextAlarmCalculator {
      * next alarm is scheduled.
      */
     fun buildScheduledInText(
+        resources: Resources,
         enabled: Boolean,
         hour: Int,
         minute: Int,
@@ -90,7 +93,7 @@ object NextAlarmCalculator {
         now: LocalDateTime = LocalDateTime.now()
     ): String {
         if (!enabled) {
-            return "Alarm is disabled"
+            return resources.getString(R.string.alarm_disabled)
         }
 
         val nextTrigger = computeNextTriggerDateTime(
@@ -98,27 +101,32 @@ object NextAlarmCalculator {
             hour = hour,
             minute = minute,
             enabledDays = enabledDays
-        ) ?: return "No alarm scheduled"
+        ) ?: return resources.getString(R.string.no_alarm_scheduled)
 
         val duration = Duration.between(now, nextTrigger)
         val totalMinutes = duration.toMinutes().coerceAtLeast(0)
-        val hours = totalMinutes / 60
+        val days = totalMinutes / (24 * 60)
+        val hours = (totalMinutes % (24 * 60)) / 60
         val minutes = totalMinutes % 60
+        val durationParts = buildList {
+            if (days > 0) {
+                add(resources.formatQuantity(R.plurals.duration_days, days))
+            }
+            if (hours > 0) {
+                add(resources.formatQuantity(R.plurals.duration_hours, hours))
+            }
+            if (minutes > 0) {
+                add(resources.formatQuantity(R.plurals.duration_minutes, minutes))
+            }
+        }
 
-        return when {
-            hours > 0 && minutes > 0 ->
-                "This alarm is scheduled in " +
-                        "$hours ${pluralize(hours, "hour")} and " +
-                        "$minutes ${pluralize(minutes, "minute")}"
-
-            hours > 0 ->
-                "This alarm is scheduled in $hours ${pluralize(hours, "hour")}"
-
-            minutes > 0 ->
-                "This alarm is scheduled in $minutes ${pluralize(minutes, "minute")}"
-
-            else ->
-                "This alarm is scheduled in less than a minute"
+        return if (durationParts.isEmpty()) {
+            resources.getString(R.string.alarm_scheduled_in_less_than_minute)
+        } else {
+            resources.formatString(
+                R.string.alarm_scheduled_in,
+                resources.joinDurationParts(durationParts)
+            )
         }
     }
 
@@ -137,10 +145,32 @@ object NextAlarmCalculator {
         }
     }
 
-    /**
-     * Return the singular or plural unit label based on count.
-     */
-    private fun pluralize(value: Long, singular: String): String {
-        return if (value == 1L) singular else "${singular}s"
+    private fun Resources.formatString(
+        id: Int,
+        vararg args: Any
+    ): String {
+        return String.format(getString(id), *args)
+    }
+
+    private fun Resources.formatQuantity(
+        id: Int,
+        value: Long
+    ): String {
+        return String.format(getQuantityText(id, value.toInt()).toString(), value)
+    }
+
+    private fun Resources.joinDurationParts(parts: List<String>): String {
+        val separator = getString(R.string.duration_separator)
+        val finalSeparator = getString(R.string.duration_final_separator)
+
+        return when (parts.size) {
+            0 -> ""
+            1 -> parts.first()
+            2 -> parts.joinToString(" $finalSeparator ")
+            else -> {
+                val allButLast = parts.dropLast(1).joinToString("$separator ")
+                "$allButLast $finalSeparator ${parts.last()}"
+            }
+        }
     }
 }
