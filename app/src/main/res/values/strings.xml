@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name" translatable="false">NTS Alarm Clock</string>
+    <string name="loading_settings">Loading settings…</string>
     <string name="time">TIME</string>
     <string name="alarm_time">Alarm time</string>
     <string name="volume">VOLUME</string>

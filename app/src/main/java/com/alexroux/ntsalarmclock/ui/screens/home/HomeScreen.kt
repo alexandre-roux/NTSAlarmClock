@@ -1,9 +1,6 @@
 package com.alexroux.ntsalarmclock.ui.screens.home
 
 import android.util.Log
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -12,8 +9,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -43,11 +38,7 @@ fun HomeScreen(
 
         // Simple loading screen displayed while alarm settings are being loaded
         HomeScreenUiState.Loading -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            )
+            HomeScreenLoadingContent()
         }
 
         is HomeScreenUiState.Success -> {
@@ -64,9 +55,8 @@ fun HomeScreen(
             // Temporary value used to avoid UI flicker while waiting for DataStore persistence
             var pendingPersistedVolume by remember { mutableStateOf<Int?>(null) }
 
-            val lifecycleOwner = LocalLifecycleOwner.current
-
             // Observe lifecycle to stop the preview stream when the app loses focus
+            val lifecycleOwner = LocalLifecycleOwner.current
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_STOP) {

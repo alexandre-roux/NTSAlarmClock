@@ -1,4 +1,5 @@
 <resources>
+    <string name="loading_settings">Chargement des paramètres…</string>
     <string name="time">HEURE</string>
     <string name="alarm_time">Heure de l\'alarme</string>
     <string name="volume">VOLUME</string>

@@ -1,6 +1,8 @@
 package com.alexroux.ntsalarmclock.ui.screens.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -13,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +30,22 @@ import com.alexroux.ntsalarmclock.ui.screens.home.components.HomeTimeSection
 import com.alexroux.ntsalarmclock.ui.screens.home.components.HomeVolumeSection
 import com.alexroux.ntsalarmclock.ui.theme.NTSAlarmClockTheme
 import java.time.DayOfWeek
+
+@Composable
+fun HomeScreenLoadingContent() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = stringResource(R.string.loading_settings),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary
+        )
+    }
+}
 
 @Composable
 fun HomeScreenContent(
@@ -81,6 +100,16 @@ fun HomeScreenContent(
             isAlarmEnabled = state.enabled,
             onClick = onAlarmEnabledClick
         )
+    }
+}
+
+@Preview(showBackground = true, name = "Home Screen Loading - English", locale = "en")
+@Preview(showBackground = true, name = "Home Screen Loading - French", locale = "fr")
+@Preview(showBackground = true, name = "Home Screen Loading - German", locale = "de")
+@Composable
+private fun HomeScreenLoadingContentPreview() {
+    NTSAlarmClockTheme {
+        HomeScreenLoadingContent()
     }
 }
 

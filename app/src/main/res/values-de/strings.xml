@@ -1,4 +1,5 @@
 <resources>
+    <string name="loading_settings">Einstellungen werden geladen…</string>
     <string name="time">ZEIT</string>
     <string name="alarm_time">Weckzeit</string>
     <string name="volume">LAUTSTÄRKE</string>
