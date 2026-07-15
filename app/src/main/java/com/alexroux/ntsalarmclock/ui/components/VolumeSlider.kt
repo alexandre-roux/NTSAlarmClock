@@ -2,7 +2,6 @@ package com.alexroux.ntsalarmclock.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -27,39 +26,36 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun VolumeSlider(
-    volumeLive: Int,
-    onVolumeLiveChange: (Int) -> Unit,
+    currentVolume: Int,
+    onVolumeChange: (Int) -> Unit,
     onVolumeChangeFinished: (Int) -> Unit,
     modifier: Modifier = Modifier,
     label: String
 ) {
-    var volumeUi by remember { mutableFloatStateOf(volumeLive.toFloat()) }
-
-    // Keep the thumb position in sync with external state updates.
-    LaunchedEffect(volumeLive) {
-        volumeUi = volumeLive.toFloat()
+    var sliderValue by remember(currentVolume) {
+        mutableFloatStateOf(currentVolume.toFloat())
     }
 
     Box(
         modifier = modifier.semantics {
             contentDescription = label
-            stateDescription = "$volumeLive percent"
+            stateDescription = "$currentVolume percent"
             progressBarRangeInfo = ProgressBarRangeInfo(
-                current = volumeLive.toFloat(),
+                current = currentVolume.toFloat(),
                 range = 0f..100f,
                 steps = 99
             )
         }
     ) {
         Seeker(
-            value = volumeUi,
+            value = sliderValue,
             range = 0f..100f,
             onValueChange = { newValue ->
-                volumeUi = newValue
-                onVolumeLiveChange(newValue.roundToInt())
+                sliderValue = newValue
+                onVolumeChange(newValue.roundToInt())
             },
             onValueChangeFinished = {
-                onVolumeChangeFinished(volumeUi.roundToInt())
+                onVolumeChangeFinished(sliderValue.roundToInt())
             },
             colors = SeekerDefaults.seekerColors(
                 progressColor = Color.White,

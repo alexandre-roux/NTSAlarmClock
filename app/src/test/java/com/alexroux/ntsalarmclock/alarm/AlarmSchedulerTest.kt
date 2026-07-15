@@ -10,9 +10,8 @@ import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.runs
 import io.mockk.unmockkAll
-import io.mockk.unmockkObject
-import io.mockk.unmockkStatic
 import io.mockk.verify
+import io.mockk.verifyOrder
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -41,7 +40,6 @@ class AlarmSchedulerTest {
         every { context.getSystemService(AlarmManager::class.java) } returns alarmManager
         every { alarmManager.canScheduleExactAlarms() } returns true
         every { alarmPendingIntent.cancel() } just runs
-        every { showPendingIntent.cancel() } just runs
 
         mockkStatic(PendingIntent::class)
         every {
@@ -56,25 +54,12 @@ class AlarmSchedulerTest {
 
     @After
     fun tearDown() {
-        unmockkObject(NextAlarmCalculator)
-        unmockkStatic(PendingIntent::class)
         unmockkAll()
     }
 
     @Test
-    fun scheduleNextAlarm_callsCancelThenSchedules() {
-        // The calculator is mocked here because this test only verifies the
-        // Android scheduling side effect.
-        mockkObject(NextAlarmCalculator)
-
-        every {
-            NextAlarmCalculator.computeNextTriggerMillis(
-                now = any<LocalDateTime>(),
-                hour = any<Int>(),
-                minute = any<Int>(),
-                enabledDays = any<Set<DayOfWeek>>()
-            )
-        } returns 123456L
+    fun scheduleNextAlarm_replacesExistingAlarmBeforeScheduling() {
+        givenNextTrigger(TRIGGER_AT_MILLIS)
 
         scheduler.scheduleNextAlarm(
             hour = 8,
@@ -82,34 +67,22 @@ class AlarmSchedulerTest {
             enabledDays = emptySet()
         )
 
-        verify { alarmManager.cancel(alarmPendingIntent) }
-        verify {
-            alarmManager.setAlarmClock(
-                any<AlarmManager.AlarmClockInfo>(),
-                alarmPendingIntent
-            )
+        verifyOrder {
+            alarmManager.cancel(alarmPendingIntent)
+            alarmManager.setAlarmClock(any<AlarmManager.AlarmClockInfo>(), alarmPendingIntent)
         }
     }
 
     @Test
     fun scheduleNextAlarm_usesExactFallback_whenAlarmClockThrowsSecurityException() {
-        mockkObject(NextAlarmCalculator)
-
-        every {
-            NextAlarmCalculator.computeNextTriggerMillis(
-                now = any<LocalDateTime>(),
-                hour = any<Int>(),
-                minute = any<Int>(),
-                enabledDays = any<Set<DayOfWeek>>()
-            )
-        } returns 123456L
+        givenNextTrigger(TRIGGER_AT_MILLIS)
         every {
             alarmManager.setAlarmClock(any<AlarmManager.AlarmClockInfo>(), alarmPendingIntent)
         } throws SecurityException("setAlarmClock denied")
         every {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
-                123456L,
+                TRIGGER_AT_MILLIS,
                 alarmPendingIntent
             )
         } just runs
@@ -125,39 +98,30 @@ class AlarmSchedulerTest {
         verify(exactly = 1) {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
-                123456L,
+                TRIGGER_AT_MILLIS,
                 alarmPendingIntent
             )
         }
         verify(exactly = 0) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, 123456L, alarmPendingIntent)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, TRIGGER_AT_MILLIS, alarmPendingIntent)
         }
     }
 
     @Test
     fun scheduleNextAlarm_usesInexactFallback_whenExactFallbackThrowsSecurityException() {
-        mockkObject(NextAlarmCalculator)
-
-        every {
-            NextAlarmCalculator.computeNextTriggerMillis(
-                now = any<LocalDateTime>(),
-                hour = any<Int>(),
-                minute = any<Int>(),
-                enabledDays = any<Set<DayOfWeek>>()
-            )
-        } returns 123456L
+        givenNextTrigger(TRIGGER_AT_MILLIS)
         every {
             alarmManager.setAlarmClock(any<AlarmManager.AlarmClockInfo>(), alarmPendingIntent)
         } throws SecurityException("setAlarmClock denied")
         every {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
-                123456L,
+                TRIGGER_AT_MILLIS,
                 alarmPendingIntent
             )
         } throws SecurityException("exact fallback denied")
         every {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, 123456L, alarmPendingIntent)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, TRIGGER_AT_MILLIS, alarmPendingIntent)
         } just runs
 
         scheduler.scheduleNextAlarm(
@@ -169,24 +133,13 @@ class AlarmSchedulerTest {
         // The final fallback is intentionally inexact. It is less precise, but
         // still better than dropping the alarm completely when exact APIs fail.
         verify(exactly = 1) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, 123456L, alarmPendingIntent)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, TRIGGER_AT_MILLIS, alarmPendingIntent)
         }
     }
 
     @Test
     fun scheduleNextAlarm_doesNothingIfTriggerIsNull() {
-        // A null trigger means there is no valid future alarm to hand to
-        // AlarmManager.
-        mockkObject(NextAlarmCalculator)
-
-        every {
-            NextAlarmCalculator.computeNextTriggerMillis(
-                now = any<LocalDateTime>(),
-                hour = any<Int>(),
-                minute = any<Int>(),
-                enabledDays = any<Set<DayOfWeek>>()
-            )
-        } returns null
+        givenNextTrigger(null)
 
         scheduler.scheduleNextAlarm(
             hour = 8,
@@ -203,10 +156,27 @@ class AlarmSchedulerTest {
     }
 
     @Test
-    fun cancelAlarm_cancelsPendingIntent() {
+    fun cancelAlarm_cancelsAlarmAndPendingIntent() {
         scheduler.cancelAlarm()
 
         verify { alarmManager.cancel(alarmPendingIntent) }
         verify { alarmPendingIntent.cancel() }
+    }
+
+    private fun givenNextTrigger(triggerAtMillis: Long?) {
+        // The calculator is mocked because these tests focus on AlarmManager calls.
+        mockkObject(NextAlarmCalculator)
+        every {
+            NextAlarmCalculator.computeNextTriggerMillis(
+                now = any<LocalDateTime>(),
+                hour = any<Int>(),
+                minute = any<Int>(),
+                enabledDays = any<Set<DayOfWeek>>()
+            )
+        } returns triggerAtMillis
+    }
+
+    private companion object {
+        const val TRIGGER_AT_MILLIS = 123_456L
     }
 }

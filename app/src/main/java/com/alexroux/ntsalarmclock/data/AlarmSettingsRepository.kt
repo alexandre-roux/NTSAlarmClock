@@ -3,68 +3,30 @@ package com.alexroux.ntsalarmclock.data
 import kotlinx.coroutines.flow.Flow
 import java.time.DayOfWeek
 
-/**
- * Data model representing all alarm settings.
- */
+/** All user-configurable alarm settings. */
 data class AlarmSettings(
-
-    /** Whether the alarm is enabled */
     val enabled: Boolean,
-
-    /** Hour of the alarm */
     val hour: Int,
-
-    /** Minute of the alarm */
     val minute: Int,
-
-    /** Alarm volume (0-100) */
+    /** Alarm volume as a percentage from 0 to 100. */
     val volume: Int,
-
-    /** Days of the week when the alarm should trigger */
     val enabledDays: Set<DayOfWeek> = emptySet(),
-
-    /** Whether progressive volume is enabled */
     val progressiveVolume: Boolean
 )
 
-/**
- * Repository contract for accessing and modifying alarm settings.
- *
- * This abstraction allows:
- * - Swapping implementations (DataStore, database, etc.)
- * - Easier testing
- * - Separation of concerns between UI and storage
- */
+/** Read and write access to the persisted alarm settings. */
 interface AlarmSettingsRepository {
 
-    /**
-     * Flow emitting the current alarm settings.
-     * Any change in storage automatically updates observers.
-     */
+    /** Emits the current settings and every subsequent update. */
     val settings: Flow<AlarmSettings>
 
-    /**
-     * Enable or disable the alarm.
-     */
     suspend fun setEnabled(enabled: Boolean)
 
-    /**
-     * Update the alarm time.
-     */
     suspend fun setTime(hour: Int, minute: Int)
 
-    /**
-     * Update the alarm volume.
-     */
     suspend fun setVolume(volume: Int)
 
-    /**
-     * Update the enabled days for the alarm.
-     */
     suspend fun setEnabledDays(days: Set<DayOfWeek>)
 
-    /**
-     * Enable or disable progressive volume.
-     */
-    suspend fun setProgressiveVolume(progressiveVolumeEnabled: Boolean)
+    suspend fun setProgressiveVolume(enabled: Boolean)
 }

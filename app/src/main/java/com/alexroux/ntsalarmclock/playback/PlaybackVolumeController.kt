@@ -6,31 +6,31 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
-private const val PROGRESSIVE_VOLUME_DURATION_MS = 60_000L
-private const val PROGRESSIVE_VOLUME_STEP_DELAY_MS = 1_000L
+private const val PROGRESSIVE_VOLUME_STEP_COUNT = 60
+private val PROGRESSIVE_VOLUME_STEP_DELAY = 1.seconds
 
+/** Controls player volume and persists changes made while the alarm is ringing. */
 class PlaybackVolumeController(
-    private val scope: CoroutineScope,
-    private val repository: AlarmSettingsRepository
+    private val serviceScope: CoroutineScope,
+    private val settingsRepository: AlarmSettingsRepository
 ) {
     private var progressiveVolumeJob: Job? = null
 
     fun startProgressiveVolume(player: Player, targetVolume: Float) {
         cancelProgressiveVolume()
-        progressiveVolumeJob = scope.launch {
-            val stepCount =
-                (PROGRESSIVE_VOLUME_DURATION_MS / PROGRESSIVE_VOLUME_STEP_DELAY_MS).toInt()
-
-            repeat(stepCount) {
-                delay(PROGRESSIVE_VOLUME_STEP_DELAY_MS.milliseconds)
-                player.volume = PlaybackServiceLogic.nextProgressiveVolumeStep(
+        progressiveVolumeJob = serviceScope.launch {
+            repeat(PROGRESSIVE_VOLUME_STEP_COUNT) {
+                delay(PROGRESSIVE_VOLUME_STEP_DELAY)
+                val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
                     currentVolume = player.volume,
                     targetVolume = targetVolume,
-                    stepCount = stepCount
+                    stepCount = PROGRESSIVE_VOLUME_STEP_COUNT
                 )
-                if (player.volume >= targetVolume) return@launch
+                player.volume = nextVolume
+
+                if (nextVolume >= targetVolume) return@launch
             }
 
             player.volume = targetVolume
@@ -39,14 +39,14 @@ class PlaybackVolumeController(
 
     fun setAbsoluteVolume(player: Player, volumePercent: Int): Float {
         cancelProgressiveVolume()
-        val sanitizedVolume = PlaybackServiceLogic.coerceVolumePercent(volumePercent)
-        val playerVolume = PlaybackServiceLogic.toPlayerVolume(sanitizedVolume)
+        val clampedVolumePercent = PlaybackServiceLogic.coerceVolumePercent(volumePercent)
+        val playerVolume = PlaybackServiceLogic.toPlayerVolume(clampedVolumePercent)
         player.volume = playerVolume
-        persistVolume(sanitizedVolume)
+        persistVolume(clampedVolumePercent)
         return playerVolume
     }
 
-    fun adjustVolume(player: Player, delta: Float): Float {
+    fun adjustVolumeBy(player: Player, delta: Float): Float {
         cancelProgressiveVolume()
         val playerVolume = PlaybackServiceLogic.applyManualVolumeDelta(player.volume, delta)
         player.volume = playerVolume
@@ -60,6 +60,6 @@ class PlaybackVolumeController(
     }
 
     private fun persistVolume(volumePercent: Int) {
-        scope.launch { repository.setVolume(volumePercent) }
+        serviceScope.launch { settingsRepository.setVolume(volumePercent) }
     }
 }

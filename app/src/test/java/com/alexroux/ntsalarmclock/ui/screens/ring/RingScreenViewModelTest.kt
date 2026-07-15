@@ -107,16 +107,16 @@ class RingScreenViewModelTest {
     }
 
     @Test
-    fun onVolumeLiveChange_clampsAndSendsVolumeToPlaybackService() = runTest {
+    fun onVolumeChange_clampsAndSendsVolumeToPlaybackService() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
 
         val viewModel = createViewModel()
         try {
             runCurrent()
 
-            viewModel.onVolumeLiveChange(150)
+            viewModel.onVolumeChange(150)
 
-            assertEquals(100, viewModel.volumeLive.value)
+            assertEquals(100, viewModel.currentVolume.value)
             verify(exactly = 1) { context.startService(any()) }
         } finally {
             viewModel.viewModelScope.cancel()
@@ -133,7 +133,7 @@ class RingScreenViewModelTest {
             viewModel.onVolumeChangeFinished(-5)
             runCurrent()
 
-            assertEquals(0, viewModel.volumeLive.value)
+            assertEquals(0, viewModel.currentVolume.value)
             coVerify(exactly = 1) { repository.setVolume(0) }
         } finally {
             viewModel.viewModelScope.cancel()
@@ -141,7 +141,7 @@ class RingScreenViewModelTest {
     }
 
     @Test
-    fun repositoryVolume_updatesLiveVolume() = runTest {
+    fun repositoryVolume_updatesCurrentVolume() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val viewModel = createViewModel()
         try {
@@ -152,7 +152,7 @@ class RingScreenViewModelTest {
             settingsFlow.value = settingsFlow.value.copy(volume = 35)
             runCurrent()
 
-            assertEquals(35, viewModel.volumeLive.value)
+            assertEquals(35, viewModel.currentVolume.value)
         } finally {
             viewModel.viewModelScope.cancel()
         }

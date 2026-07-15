@@ -1,5 +1,6 @@
 package com.alexroux.ntsalarmclock.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -46,10 +47,11 @@ fun DaysOfWeekRow(
     ) {
         DayOfWeek.entries.forEach { day ->
             val isSelected = day in selectedDays
+            val labels = day.labels
 
             DayButton(
-                label = stringResource(day.shortLabelResource),
-                dayName = stringResource(day.fullLabelResource),
+                label = stringResource(labels.shortName),
+                dayName = stringResource(labels.fullName),
                 selected = isSelected,
                 onClick = { onToggleDay(day) },
             )
@@ -105,24 +107,18 @@ private fun DayButton(
     }
 }
 
-private val DayOfWeek.shortLabelResource: Int
-    get() = when (this) {
-        DayOfWeek.MONDAY -> R.string.monday_short
-        DayOfWeek.TUESDAY -> R.string.tuesday_short
-        DayOfWeek.WEDNESDAY -> R.string.wednesday_short
-        DayOfWeek.THURSDAY -> R.string.thursday_short
-        DayOfWeek.FRIDAY -> R.string.friday_short
-        DayOfWeek.SATURDAY -> R.string.saturday_short
-        DayOfWeek.SUNDAY -> R.string.sunday_short
-    }
+private data class DayLabels(
+    @param:StringRes val shortName: Int,
+    @param:StringRes val fullName: Int
+)
 
-private val DayOfWeek.fullLabelResource: Int
+private val DayOfWeek.labels: DayLabels
     get() = when (this) {
-        DayOfWeek.MONDAY -> R.string.monday
-        DayOfWeek.TUESDAY -> R.string.tuesday
-        DayOfWeek.WEDNESDAY -> R.string.wednesday
-        DayOfWeek.THURSDAY -> R.string.thursday
-        DayOfWeek.FRIDAY -> R.string.friday
-        DayOfWeek.SATURDAY -> R.string.saturday
-        DayOfWeek.SUNDAY -> R.string.sunday
+        DayOfWeek.MONDAY -> DayLabels(R.string.monday_short, R.string.monday)
+        DayOfWeek.TUESDAY -> DayLabels(R.string.tuesday_short, R.string.tuesday)
+        DayOfWeek.WEDNESDAY -> DayLabels(R.string.wednesday_short, R.string.wednesday)
+        DayOfWeek.THURSDAY -> DayLabels(R.string.thursday_short, R.string.thursday)
+        DayOfWeek.FRIDAY -> DayLabels(R.string.friday_short, R.string.friday)
+        DayOfWeek.SATURDAY -> DayLabels(R.string.saturday_short, R.string.saturday)
+        DayOfWeek.SUNDAY -> DayLabels(R.string.sunday_short, R.string.sunday)
     }

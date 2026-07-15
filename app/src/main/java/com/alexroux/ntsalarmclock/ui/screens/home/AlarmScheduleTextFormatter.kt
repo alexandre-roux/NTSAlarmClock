@@ -36,28 +36,28 @@ class ResourceAlarmScheduleTextFormatter(
             enabledDays = enabledDays
         ) ?: return resources.getString(R.string.no_alarm_scheduled)
 
-        val totalMinutes = Duration.between(now, nextTrigger).toMinutes().coerceAtLeast(0)
-        val days = totalMinutes / MINUTES_PER_DAY
-        val hours = (totalMinutes % MINUTES_PER_DAY) / MINUTES_PER_HOUR
-        val minutes = totalMinutes % MINUTES_PER_HOUR
-        val parts = buildList {
+        val minutesUntilAlarm = Duration.between(now, nextTrigger).toMinutes().coerceAtLeast(0)
+        val days = minutesUntilAlarm / MINUTES_PER_DAY
+        val hours = (minutesUntilAlarm % MINUTES_PER_DAY) / MINUTES_PER_HOUR
+        val minutes = minutesUntilAlarm % MINUTES_PER_HOUR
+        val durationParts = buildList {
             if (days > 0) add(resources.formatQuantity(R.plurals.duration_days, days))
             if (hours > 0) add(resources.formatQuantity(R.plurals.duration_hours, hours))
             if (minutes > 0) add(resources.formatQuantity(R.plurals.duration_minutes, minutes))
         }
 
-        if (parts.isEmpty()) {
+        if (durationParts.isEmpty()) {
             return resources.getString(R.string.alarm_scheduled_in_less_than_minute)
         }
 
-        return String.format(
-            resources.getString(R.string.alarm_scheduled_in),
-            resources.joinDurationParts(parts)
+        return resources.getString(
+            R.string.alarm_scheduled_in,
+            resources.joinDurationParts(durationParts)
         )
     }
 
     private fun Resources.formatQuantity(id: Int, value: Long): String {
-        return String.format(getQuantityText(id, value.toInt()).toString(), value)
+        return getQuantityString(id, value.toInt(), value)
     }
 
     private fun Resources.joinDurationParts(parts: List<String>): String {

@@ -1,14 +1,17 @@
 package com.alexroux.ntsalarmclock.alarm
 
+import android.Manifest
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.alarmSettingsDataStore
@@ -37,137 +40,133 @@ open class AlarmReceiver : BroadcastReceiver() {
         val pendingResult = createPendingResult()
         val wakeLock = createWakeLock(context)
 
-        // Keep the CPU awake for the short amount of work done here.
         wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
         Log.d(TAG, "Wake lock acquired for ${WAKE_LOCK_TIMEOUT_MS}ms")
 
         createScope().launch {
             try {
-                val repository = createRepository(context)
-                val settings = repository.settings.first()
-
-                Log.d(
-                    TAG,
-                    "Alarm fired with settings: enabled=${settings.enabled}, " +
-                            "time=${settings.hour}:${settings.minute}, " +
-                            "days=${settings.enabledDays}, " +
-                            "progressiveVolume=${settings.progressiveVolume}"
-                )
-
-                withContext(Dispatchers.Main) {
-                    /**
-                     * Check notification permissions before attempting to start the
-                     * foreground service.
-                     */
-                    if (!areNotificationsAllowed(context)) {
-                        Log.e(
-                            TAG,
-                            "Notifications are not allowed, skipping playback service start. " +
-                                    "The alarm fired but the user will not hear it."
-                        )
-                        return@withContext
-                    }
-
-                    Log.d(TAG, "Notifications allowed, starting playback foreground service")
-                    startPlaybackService(context)
-                }
-
-                /**
-                 * Re-schedule only when the alarm is still enabled and is configured
-                 * as recurring.
-                 *
-                 * This avoids the classic bug where a one-shot alarm gets scheduled
-                 * again after it has already fired.
-                 */
-                if (settings.enabled && settings.enabledDays.isNotEmpty()) {
-                    Log.d(TAG, "Recurring alarm detected, scheduling the next occurrence")
-
-                    createScheduler(context).scheduleNextAlarm(
-                        hour = settings.hour,
-                        minute = settings.minute,
-                        enabledDays = settings.enabledDays
-                    )
-                } else {
-                    Log.d(
-                        TAG,
-                        "No re-schedule needed: enabled=${settings.enabled}, days=${settings.enabledDays}"
-                    )
-
-                    /**
-                     * A one-shot alarm has no selected recurring days.
-                     * Once it has fired, persist it as disabled so the UI state
-                     * stays consistent with the actual system schedule.
-                     */
-                    if (settings.enabled && settings.enabledDays.isEmpty()) {
-                        Log.d(TAG, "One-shot alarm consumed, disabling it")
-                        repository.setEnabled(false)
-                    }
-                }
-            } catch (t: Throwable) {
-                Log.e(TAG, "AlarmReceiver failed", t)
+                handleAlarm(context)
+            } catch (throwable: Throwable) {
+                Log.e(TAG, "AlarmReceiver failed", throwable)
             } finally {
-                if (wakeLock.isHeld) {
-                    wakeLock.release()
-                    Log.d(TAG, "Wake lock released")
-                }
-
-                pendingResult.finish()
-                Log.d(TAG, "PendingResult finished")
+                finishReceiverWork(wakeLock, pendingResult)
             }
         }
     }
 
-    /**
-     * Returns true if the app is allowed to post notifications.
-     */
+    private suspend fun handleAlarm(context: Context) {
+        val repository = createRepository(context)
+        val settings = repository.settings.first()
+
+        Log.d(
+            TAG,
+            "Alarm fired with settings: enabled=${settings.enabled}, " +
+                    "time=${settings.hour}:${settings.minute}, " +
+                    "days=${settings.enabledDays}, " +
+                    "progressiveVolume=${settings.progressiveVolume}"
+        )
+
+        startPlaybackIfAllowed(context)
+        updateScheduleAfterAlarm(context, settings, repository)
+    }
+
+    private suspend fun startPlaybackIfAllowed(context: Context) {
+        withContext(Dispatchers.Main) {
+            if (!areNotificationsAllowed(context)) {
+                Log.e(
+                    TAG,
+                    "Notifications are not allowed, so alarm playback cannot start"
+                )
+                return@withContext
+            }
+
+            Log.d(TAG, "Starting alarm playback service")
+            startPlaybackService(context)
+        }
+    }
+
+    private suspend fun updateScheduleAfterAlarm(
+        context: Context,
+        settings: AlarmSettings,
+        repository: AlarmSettingsRepository
+    ) {
+        when {
+            !settings.enabled -> {
+                Log.d(TAG, "Alarm is disabled; no next occurrence will be scheduled")
+            }
+
+            settings.enabledDays.isEmpty() -> {
+                Log.d(TAG, "One-shot alarm fired; disabling it")
+                repository.setEnabled(false)
+            }
+
+            else -> {
+                Log.d(TAG, "Recurring alarm fired; scheduling its next occurrence")
+                createScheduler(context).scheduleNextAlarm(
+                    hour = settings.hour,
+                    minute = settings.minute,
+                    enabledDays = settings.enabledDays
+                )
+            }
+        }
+    }
+
+    private fun finishReceiverWork(
+        wakeLock: PowerManager.WakeLock,
+        pendingResult: PendingResult
+    ) {
+        if (wakeLock.isHeld) {
+            wakeLock.release()
+            Log.d(TAG, "Wake lock released")
+        }
+
+        pendingResult.finish()
+        Log.d(TAG, "PendingResult finished")
+    }
+
     protected open fun areNotificationsAllowed(context: Context): Boolean {
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
             Log.e(TAG, "Notifications are disabled at app level")
             return false
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ContextCompat.checkSelfPermission(
-                context,
-                android.Manifest.permission.POST_NOTIFICATIONS
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-            if (!granted) {
-                Log.e(TAG, "POST_NOTIFICATIONS permission is denied")
-                return false
-            }
+        if (!hasPostNotificationsPermission(context)) {
+            Log.e(TAG, "POST_NOTIFICATIONS permission is denied")
+            return false
         }
 
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channel = manager.getNotificationChannel(AlarmNotification.CHANNEL_ID)
+        val notificationManager = context.getSystemService(NotificationManager::class.java)
+        val alarmChannel =
+            notificationManager.getNotificationChannel(AlarmNotification.CHANNEL_ID)
 
-        if (channel != null && channel.importance == NotificationManager.IMPORTANCE_NONE) {
+        if (alarmChannel?.importance == NotificationManager.IMPORTANCE_NONE) {
             Log.w(TAG, "Alarm notification channel is blocked by the user")
             return false
         }
 
         Log.d(
             TAG,
-            "Notification checks passed: channelImportance=${channel?.importance ?: "missing"}"
+            "Notification checks passed: channelImportance=${alarmChannel?.importance ?: "missing"}"
         )
         return true
     }
 
-    protected open fun createRepository(context: Context): AlarmSettingsRepository {
-        return DataStoreAlarmSettingsRepository(context.alarmSettingsDataStore)
+    private fun hasPostNotificationsPermission(context: Context): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
     }
 
-    protected open fun createScheduler(context: Context): AlarmScheduler {
-        return AlarmScheduler(context)
-    }
+    protected open fun createRepository(context: Context): AlarmSettingsRepository =
+        DataStoreAlarmSettingsRepository(context.alarmSettingsDataStore)
 
-    protected open fun createScope(): CoroutineScope {
-        return CoroutineScope(Dispatchers.IO)
-    }
+    protected open fun createScheduler(context: Context): AlarmScheduler = AlarmScheduler(context)
 
-    protected open fun createPendingResult(): PendingResult {
-        return goAsync()
-    }
+    protected open fun createScope(): CoroutineScope = CoroutineScope(Dispatchers.IO)
+
+    protected open fun createPendingResult(): PendingResult = goAsync()
 
     protected open fun createWakeLock(context: Context): PowerManager.WakeLock {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager

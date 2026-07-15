@@ -2,12 +2,13 @@ package com.alexroux.ntsalarmclock.alarm
 
 import java.time.DayOfWeek
 import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
  * Shared utility used to compute the next alarm trigger time.
  *
- * This logic is intentionally extracted so both the UI layer and the
- * scheduling layer can rely on the exact same calculation.
+ * The UI and scheduling layers use this object so they always agree about the
+ * next alarm occurrence.
  */
 object NextAlarmCalculator {
 
@@ -23,31 +24,23 @@ object NextAlarmCalculator {
         minute: Int,
         enabledDays: Set<DayOfWeek>
     ): LocalDateTime? {
+        val alarmToday = now.toLocalDate().atTime(hour, minute)
+
         if (enabledDays.isEmpty()) {
-            var candidate = now
-                .withHour(hour)
-                .withMinute(minute)
-                .withSecond(0)
-                .withNano(0)
-
-            if (!candidate.isAfter(now)) {
-                candidate = candidate.plusDays(1)
+            return if (alarmToday.isAfter(now)) {
+                alarmToday
+            } else {
+                alarmToday.plusDays(1)
             }
-
-            return candidate
         }
 
-        for (offset in 0..7) {
-            val candidateDate = now.toLocalDate().plusDays(offset.toLong())
-            val candidateDay = candidateDate.dayOfWeek
+        // Include the same weekday next week when today's alarm time has passed.
+        for (daysFromToday in 0..DAYS_IN_WEEK) {
+            val candidate = now.toLocalDate()
+                .plusDays(daysFromToday.toLong())
+                .atTime(hour, minute)
 
-            if (candidateDay !in enabledDays) {
-                continue
-            }
-
-            val candidate = candidateDate.atTime(hour, minute, 0, 0)
-
-            if (candidate.isAfter(now)) {
+            if (candidate.dayOfWeek in enabledDays && candidate.isAfter(now)) {
                 return candidate
             }
         }
@@ -64,14 +57,18 @@ object NextAlarmCalculator {
         minute: Int,
         enabledDays: Set<DayOfWeek>
     ): Long? {
-        return computeNextTriggerDateTime(
+        val triggerDateTime = computeNextTriggerDateTime(
             now = now,
             hour = hour,
             minute = minute,
             enabledDays = enabledDays
-        )?.atZone(java.time.ZoneId.systemDefault())
-            ?.toInstant()
-            ?.toEpochMilli()
+        ) ?: return null
+
+        return triggerDateTime
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
     }
 
+    private const val DAYS_IN_WEEK = 7
 }

@@ -32,11 +32,11 @@ class RingScreenViewModel @Inject constructor(
     private val _currentShow = MutableStateFlow<String?>(null)
     val currentShow: StateFlow<String?> = _currentShow.asStateFlow()
 
-    private val _volumeLive = MutableStateFlow(70)
-    val volumeLive: StateFlow<Int> = _volumeLive.asStateFlow()
+    private val _currentVolume = MutableStateFlow(70)
+    val currentVolume: StateFlow<Int> = _currentVolume.asStateFlow()
 
     init {
-        startFetchingCurrentShow()
+        refreshCurrentShowPeriodically()
         observeVolume()
     }
 
@@ -54,48 +54,42 @@ class RingScreenViewModel @Inject constructor(
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
     }
 
-    /**
-     * Live change → update UI + player ONLY (no persistence)
-     */
-    fun onVolumeLiveChange(volume: Int) {
-        val sanitized = volume.coerceIn(0, 100)
-        _volumeLive.value = sanitized
+    /** Updates the UI and player immediately while the user moves the slider. */
+    fun onVolumeChange(volume: Int) {
+        val safeVolume = volume.coerceIn(0, 100)
+        _currentVolume.value = safeVolume
 
         val intent = Intent(context, PlaybackService::class.java).apply {
             action = PlaybackService.ACTION_SET_VOLUME
-            putExtra(PlaybackService.EXTRA_VOLUME, sanitized)
+            putExtra(PlaybackService.EXTRA_VOLUME, safeVolume)
         }
         context.startService(intent)
     }
 
-    /**
-     * Final change → persist only
-     */
+    /** Persists the final slider value when the user stops dragging. */
     fun onVolumeChangeFinished(volume: Int) {
-        val sanitized = volume.coerceIn(0, 100)
-        _volumeLive.value = sanitized
+        val safeVolume = volume.coerceIn(0, 100)
+        _currentVolume.value = safeVolume
 
         viewModelScope.launch {
-            repository.setVolume(sanitized)
+            repository.setVolume(safeVolume)
         }
     }
 
-    /**
-     * Keep UI in sync with DataStore (hardware buttons, etc.)
-     */
+    /** Keeps the slider synchronized with persisted and hardware-button changes. */
     private fun observeVolume() {
         viewModelScope.launch {
             repository.settings.collect { settings ->
-                _volumeLive.value = settings.volume
+                _currentVolume.value = settings.volume
             }
         }
     }
 
-    private fun startFetchingCurrentShow() {
+    private fun refreshCurrentShowPeriodically() {
         viewModelScope.launch {
             while (true) {
                 ntsRepository.getCurrentShow()
-                    .onSuccess { _currentShow.value = it }
+                    .onSuccess { showTitle -> _currentShow.value = showTitle }
                     .onFailure { error ->
                         NtsLogger.w(TAG, "Unable to refresh the current NTS show: ${error.message}")
                     }

@@ -24,29 +24,22 @@ object AppModule {
     @Singleton
     fun provideAlarmSettingsRepository(
         @ApplicationContext context: Context
-    ): AlarmSettingsRepository {
-        return DataStoreAlarmSettingsRepository(context.alarmSettingsDataStore)
-    }
+    ): AlarmSettingsRepository =
+        DataStoreAlarmSettingsRepository(context.alarmSettingsDataStore)
 
     @Provides
     @Singleton
     fun provideAlarmScheduler(
         @ApplicationContext context: Context
-    ): AlarmScheduler {
-        return AlarmScheduler(context)
-    }
+    ): AlarmScheduler = AlarmScheduler(context)
 
     @Provides
     @Singleton
     fun provideAlarmScheduleTextFormatter(
         @ApplicationContext context: Context
-    ): AlarmScheduleTextFormatter {
-        return ResourceAlarmScheduleTextFormatter(context.resources)
-    }
+    ): AlarmScheduleTextFormatter = ResourceAlarmScheduleTextFormatter(context.resources)
 
     @Provides
     @Singleton
-    fun provideNtsRepository(): NtsRepository {
-        return NtsRepository(NtsNetwork.api)
-    }
+    fun provideNtsRepository(): NtsRepository = NtsRepository(NtsNetwork.api)
 }

@@ -2,13 +2,12 @@ package com.alexroux.ntsalarmclock.data.nts
 
 class NtsRepository(private val api: NtsApi) {
 
-    suspend fun getCurrentShow(): Result<String?> {
-        return runCatching {
-            api.getLive()
-                .results
+    suspend fun getCurrentShow(): Result<String?> =
+        runCatching {
+            api.getLiveSchedule()
+                .channels
                 .firstOrNull()
-                ?.now
-                ?.broadcastTitle
+                ?.currentShow
+                ?.title
         }
-    }
 }

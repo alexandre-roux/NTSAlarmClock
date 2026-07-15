@@ -51,11 +51,11 @@ fun HomeScreenLoadingContent() {
 fun HomeScreenContent(
     state: HomeScreenUiState.Success,
     isPlaying: Boolean,
-    volumeLive: Int,
+    currentVolume: Int,
     onPlayPauseClick: () -> Unit,
     onTimeChange: (Int, Int) -> Unit,
     onToggleDay: (DayOfWeek) -> Unit,
-    onVolumeLiveChange: (Int) -> Unit,
+    onVolumeChange: (Int) -> Unit,
     onVolumeChangeFinished: (Int) -> Unit,
     onAlarmEnabledClick: () -> Unit,
     onProgressiveVolumeEnabledChange: (Boolean) -> Unit
@@ -78,9 +78,9 @@ fun HomeScreenContent(
 
         HomeVolumeSection(
             isPlaying = isPlaying,
-            volumeLive = volumeLive,
+            currentVolume = currentVolume,
             onPlayPauseClick = onPlayPauseClick,
-            onVolumeLiveChange = onVolumeLiveChange,
+            onVolumeChange = onVolumeChange,
             onVolumeChangeFinished = onVolumeChangeFinished
         )
 
@@ -126,7 +126,6 @@ private fun HomeScreenContentAlarmSetPreview() {
                     hour = 7,
                     minute = 0,
                     volume = 70,
-                    streamUrl = "https://stream-relay-geo.ntslive.net/stream",
                     enabledDays = setOf(
                         DayOfWeek.MONDAY,
                         DayOfWeek.WEDNESDAY,
@@ -136,11 +135,11 @@ private fun HomeScreenContentAlarmSetPreview() {
                     scheduledInText = stringResource(R.string.preview_alarm_scheduled_in)
                 ),
                 isPlaying = false,
-                volumeLive = 70,
+                currentVolume = 70,
                 onPlayPauseClick = {},
                 onTimeChange = { _, _ -> },
                 onToggleDay = {},
-                onVolumeLiveChange = {},
+                onVolumeChange = {},
                 onVolumeChangeFinished = {},
                 onAlarmEnabledClick = {},
                 onProgressiveVolumeEnabledChange = {}
@@ -162,17 +161,16 @@ private fun HomeScreenContentAlarmNotSetPreview() {
                     hour = 7,
                     minute = 0,
                     volume = 70,
-                    streamUrl = "https://stream-relay-geo.ntslive.net/stream",
                     enabledDays = emptySet(),
                     progressiveVolume = false,
                     scheduledInText = ""
                 ),
                 isPlaying = false,
-                volumeLive = 70,
+                currentVolume = 70,
                 onPlayPauseClick = {},
                 onTimeChange = { _, _ -> },
                 onToggleDay = {},
-                onVolumeLiveChange = {},
+                onVolumeChange = {},
                 onVolumeChangeFinished = {},
                 onAlarmEnabledClick = {},
                 onProgressiveVolumeEnabledChange = {}

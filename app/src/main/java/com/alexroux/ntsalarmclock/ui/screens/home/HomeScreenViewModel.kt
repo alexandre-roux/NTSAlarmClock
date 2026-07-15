@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.alexroux.ntsalarmclock.alarm.AlarmScheduler
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
-import com.alexroux.ntsalarmclock.playback.NTS_STREAM_URL
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,7 +32,6 @@ sealed interface HomeScreenUiState {
         val volume: Int,
         val enabledDays: Set<DayOfWeek>,
         val progressiveVolume: Boolean,
-        val streamUrl: String,
         val scheduledInText: String
     ) : HomeScreenUiState
 }
@@ -44,7 +42,7 @@ sealed interface HomeScreenUiState {
  * Volume and progressive volume are intentionally excluded because
  * they do not affect when the next alarm should ring.
  */
-data class AlarmScheduleConfig(
+private data class AlarmScheduleConfig(
     val enabled: Boolean,
     val hour: Int,
     val minute: Int,
@@ -80,14 +78,7 @@ class HomeScreenViewModel @Inject constructor(
      */
     private val scheduleConfigFlow: Flow<AlarmScheduleConfig> =
         repository.settings
-            .map { settings ->
-                AlarmScheduleConfig(
-                    enabled = settings.enabled,
-                    hour = settings.hour,
-                    minute = settings.minute,
-                    enabledDays = settings.enabledDays
-                )
-            }
+            .map { settings -> settings.toScheduleConfig() }
             .distinctUntilChanged()
 
     init {
@@ -101,23 +92,26 @@ class HomeScreenViewModel @Inject constructor(
     private fun observeAlarmScheduling() {
         viewModelScope.launch {
             scheduleConfigFlow.collect { config ->
-                Log.d(
-                    TAG,
-                    "schedule config changed: enabled=${config.enabled}, " +
-                            "time=${config.hour}:${config.minute}, " +
-                            "days=${config.enabledDays}"
-                )
-
-                if (config.enabled) {
-                    alarmScheduler.scheduleNextAlarm(
-                        hour = config.hour,
-                        minute = config.minute,
-                        enabledDays = config.enabledDays
-                    )
-                } else {
-                    alarmScheduler.cancelAlarm()
-                }
+                updateAlarmSchedule(config)
             }
+        }
+    }
+
+    private fun updateAlarmSchedule(config: AlarmScheduleConfig) {
+        Log.d(
+            TAG,
+            "schedule config changed: enabled=${config.enabled}, " +
+                    "time=${config.hour}:${config.minute}, days=${config.enabledDays}"
+        )
+
+        if (config.enabled) {
+            alarmScheduler.scheduleNextAlarm(
+                hour = config.hour,
+                minute = config.minute,
+                enabledDays = config.enabledDays
+            )
+        } else {
+            alarmScheduler.cancelAlarm()
         }
     }
 
@@ -145,17 +139,13 @@ class HomeScreenViewModel @Inject constructor(
      */
     fun onToggleDay(day: DayOfWeek) {
         withSuccessState { state ->
-            val updatedDays = state.enabledDays.toMutableSet().apply {
-                if (contains(day)) {
-                    remove(day)
-                } else {
-                    add(day)
-                }
+            val updatedDays = if (day in state.enabledDays) {
+                state.enabledDays - day
+            } else {
+                state.enabledDays + day
             }
 
-            updateSettings {
-                repository.setEnabledDays(updatedDays)
-            }
+            updateSettings { repository.setEnabledDays(updatedDays) }
         }
     }
 
@@ -213,18 +203,21 @@ class HomeScreenViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Convert repository data into screen state.
-     */
-    private fun AlarmSettings.toUiState(): HomeScreenUiState.Success {
-        return HomeScreenUiState.Success(
+    private fun AlarmSettings.toScheduleConfig() = AlarmScheduleConfig(
+        enabled = enabled,
+        hour = hour,
+        minute = minute,
+        enabledDays = enabledDays
+    )
+
+    private fun AlarmSettings.toUiState() =
+        HomeScreenUiState.Success(
             enabled = enabled,
             hour = hour,
             minute = minute,
             volume = volume,
             enabledDays = enabledDays,
             progressiveVolume = progressiveVolume,
-            streamUrl = NTS_STREAM_URL,
             scheduledInText = scheduleTextFormatter.format(
                 enabled = enabled,
                 hour = hour,
@@ -232,5 +225,4 @@ class HomeScreenViewModel @Inject constructor(
                 enabledDays = enabledDays
             )
         )
-    }
 }

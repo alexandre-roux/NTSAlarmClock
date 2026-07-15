@@ -34,8 +34,8 @@ class RingScreenContentTest {
                         // NTS show titles can include HTML entities; the UI
                         // should render the decoded value.
                         currentShow = "Breakfast &amp; Show",
-                        volumeLive = 70,
-                        onVolumeLiveChange = {},
+                        currentVolume = 70,
+                        onVolumeChange = {},
                         onVolumeChangeFinished = {},
                         onStopClick = {}
                     )
@@ -65,8 +65,8 @@ class RingScreenContentTest {
                     RingScreenContent(
                         isFallbackAudioActive = false,
                         currentShow = null,
-                        volumeLive = 70,
-                        onVolumeLiveChange = {},
+                        currentVolume = 70,
+                        onVolumeChange = {},
                         onVolumeChangeFinished = {},
                         onStopClick = { stopClicked = true }
                     )
@@ -90,8 +90,8 @@ class RingScreenContentTest {
                     RingScreenContent(
                         isFallbackAudioActive = false,
                         currentShow = null,
-                        volumeLive = 70,
-                        onVolumeLiveChange = {},
+                        currentVolume = 70,
+                        onVolumeChange = {},
                         onVolumeChangeFinished = {},
                         onStopClick = {}
                     )

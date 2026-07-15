@@ -19,11 +19,8 @@ import com.alexroux.ntsalarmclock.playback.PlaybackService
  * including the full-screen ringing activity and the action used to stop the alarm.
  */
 object AlarmNotification {
-    // Stable identifiers shared by the notification channel and PendingIntents.
     const val CHANNEL_ID = "alarm_channel_v2"
     const val NOTIFICATION_ID = 1001
-    const val REQUEST_CODE_FULLSCREEN = 2001
-    const val REQUEST_CODE_STOP = 2002
 
     /**
      * Registers the high-importance channel required for alarm notifications.
@@ -44,9 +41,7 @@ object AlarmNotification {
             setSound(null, null)
         }
 
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
+        val notificationManager = context.getSystemService(NotificationManager::class.java)
         notificationManager.createNotificationChannel(channel)
     }
 
@@ -61,35 +56,9 @@ object AlarmNotification {
         context: Context,
         fallbackAudioActive: Boolean = false
     ): Notification {
-        // Reuse an existing RingingActivity when possible and keep its fallback-audio state fresh.
-        val activityIntent = Intent(context, RingingActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, fallbackAudioActive)
-        }
+        val fullScreenIntent = createFullScreenPendingIntent(context, fallbackAudioActive)
+        val stopAlarmIntent = createStopAlarmPendingIntent(context)
 
-        val fullScreenPendingIntent = PendingIntent.getActivity(
-            context,
-            REQUEST_CODE_FULLSCREEN,
-            activityIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // Route the notification action through the service that owns alarm playback.
-        val stopIntent = Intent(context, PlaybackService::class.java).apply {
-            action = PlaybackService.ACTION_STOP_ALARM
-        }
-
-        val stopPendingIntent = PendingIntent.getService(
-            context,
-            REQUEST_CODE_STOP,
-            stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // Keep the notification visible for the lifetime of the ringing service. The full-screen
-        // intent presents the alarm UI immediately when Android policy allows it.
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(context.getString(R.string.app_name))
@@ -100,13 +69,50 @@ object AlarmNotification {
             .setOngoing(true)
             .setAutoCancel(false)
             .setOnlyAlertOnce(true)
-            .setContentIntent(fullScreenPendingIntent)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setContentIntent(fullScreenIntent)
+            .setFullScreenIntent(fullScreenIntent, true)
             .addAction(
                 R.drawable.ic_launcher_foreground,
                 context.getString(R.string.stop_alarm_button),
-                stopPendingIntent
+                stopAlarmIntent
             )
             .build()
     }
+
+    private fun createFullScreenPendingIntent(
+        context: Context,
+        fallbackAudioActive: Boolean
+    ): PendingIntent {
+        val intent = Intent(context, RingingActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, fallbackAudioActive)
+        }
+
+        return PendingIntent.getActivity(
+            context,
+            REQUEST_CODE_FULLSCREEN,
+            intent,
+            PENDING_INTENT_FLAGS
+        )
+    }
+
+    private fun createStopAlarmPendingIntent(context: Context): PendingIntent {
+        val intent = Intent(context, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_STOP_ALARM
+        }
+
+        return PendingIntent.getService(
+            context,
+            REQUEST_CODE_STOP,
+            intent,
+            PENDING_INTENT_FLAGS
+        )
+    }
+
+    private const val REQUEST_CODE_FULLSCREEN = 2001
+    private const val REQUEST_CODE_STOP = 2002
+    private const val PENDING_INTENT_FLAGS =
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 }

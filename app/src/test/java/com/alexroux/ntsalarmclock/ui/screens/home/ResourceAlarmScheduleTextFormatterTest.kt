@@ -104,30 +104,33 @@ class ResourceAlarmScheduleTextFormatterTest {
         every { resources.getString(R.string.alarm_disabled) } returns "Alarm is disabled"
         every { resources.getString(R.string.no_alarm_scheduled) } returns "No alarm scheduled"
         every {
-            resources.getString(R.string.alarm_scheduled_in)
-        } returns "This alarm is scheduled in %1\$s"
+            resources.getString(R.string.alarm_scheduled_in, any())
+        } answers {
+            val duration = secondArg<Array<Any>>().single()
+            "This alarm is scheduled in $duration"
+        }
         every {
             resources.getString(R.string.alarm_scheduled_in_less_than_minute)
         } returns "This alarm is scheduled in less than a minute"
         every { resources.getString(R.string.duration_separator) } returns ","
         every { resources.getString(R.string.duration_final_separator) } returns "and"
         every {
-            resources.getQuantityText(R.plurals.duration_days, match { it == 1 })
-        } returns "%d day"
+            resources.getQuantityString(R.plurals.duration_days, match { it == 1 }, any())
+        } answers { "${secondArg<Int>()} day" }
         every {
-            resources.getQuantityText(R.plurals.duration_days, match { it != 1 })
-        } returns "%d days"
+            resources.getQuantityString(R.plurals.duration_days, match { it != 1 }, any())
+        } answers { "${secondArg<Int>()} days" }
         every {
-            resources.getQuantityText(R.plurals.duration_hours, match { it == 1 })
-        } returns "%d hour"
+            resources.getQuantityString(R.plurals.duration_hours, match { it == 1 }, any())
+        } answers { "${secondArg<Int>()} hour" }
         every {
-            resources.getQuantityText(R.plurals.duration_hours, match { it != 1 })
-        } returns "%d hours"
+            resources.getQuantityString(R.plurals.duration_hours, match { it != 1 }, any())
+        } answers { "${secondArg<Int>()} hours" }
         every {
-            resources.getQuantityText(R.plurals.duration_minutes, match { it == 1 })
-        } returns "%d minute"
+            resources.getQuantityString(R.plurals.duration_minutes, match { it == 1 }, any())
+        } answers { "${secondArg<Int>()} minute" }
         every {
-            resources.getQuantityText(R.plurals.duration_minutes, match { it != 1 })
-        } returns "%d minutes"
+            resources.getQuantityString(R.plurals.duration_minutes, match { it != 1 }, any())
+        } answers { "${secondArg<Int>()} minutes" }
     }
 }

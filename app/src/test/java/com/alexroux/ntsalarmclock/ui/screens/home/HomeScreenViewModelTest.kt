@@ -4,7 +4,6 @@ import android.util.Log
 import com.alexroux.ntsalarmclock.alarm.AlarmScheduler
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
-import com.alexroux.ntsalarmclock.playback.NTS_STREAM_URL
 import io.mockk.clearMocks
 import io.mockk.coVerify
 import io.mockk.confirmVerified
@@ -96,7 +95,6 @@ class HomeScreenViewModelTest {
         assertEquals(50, state.volume)
         assertEquals(emptySet<DayOfWeek>(), state.enabledDays)
         assertEquals(false, state.progressiveVolume)
-        assertEquals(NTS_STREAM_URL, state.streamUrl)
         assertEquals("Alarm is disabled", state.scheduledInText)
 
         job.cancel()

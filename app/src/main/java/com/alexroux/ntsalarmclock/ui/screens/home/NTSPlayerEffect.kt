@@ -18,7 +18,7 @@ import com.alexroux.ntsalarmclock.playback.PlaybackServiceLogic
  * This composable does not render UI. Instead it manages the lifecycle
  * of the player and reacts to state changes from the HomeScreen:
  *
- * - prepares the player when the stream URL changes
+ * - prepares the player when it enters the composition
  * - updates the playback volume
  * - starts or pauses playback depending on the UI state
  * - pauses playback when the app loses focus
@@ -32,28 +32,21 @@ fun NTSPlayerEffect(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Create the ExoPlayer instance once and keep it across recompositions
-    val player = remember {
+    val player = remember(context) {
         NTSPlayerFactory.create(context)
     }
 
-    /**
-     * Prepare the player once when the composable enters the composition.
-     * This avoids restarting the stream on every recomposition.
-     */
-    LaunchedEffect(Unit) {
+    LaunchedEffect(player) {
         NTSPlayerFactory.prepareStream(
             player = player,
             volume = PlaybackServiceLogic.toPlayerVolume(volumePercent)
         )
     }
 
-    // Update the player volume when the UI volume changes
     LaunchedEffect(volumePercent) {
         player.volume = PlaybackServiceLogic.toPlayerVolume(volumePercent)
     }
 
-    // Start or pause playback depending on the requested state
     LaunchedEffect(shouldPlay) {
         if (shouldPlay) {
             player.play()
@@ -62,14 +55,10 @@ fun NTSPlayerEffect(
         }
     }
 
-    // Observe lifecycle events to stop playback when the app loses focus
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(player, lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_STOP -> {
-                    player.pause()
-                }
-                else -> Unit
+            if (event == Lifecycle.Event.ON_STOP) {
+                player.pause()
             }
         }
 

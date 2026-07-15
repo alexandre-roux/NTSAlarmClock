@@ -1,4 +1,4 @@
-﻿package com.alexroux.ntsalarmclock.alarm
+package com.alexroux.ntsalarmclock.alarm
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -12,31 +12,26 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.runs
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.DayOfWeek
 
-/**
- * Tests AlarmReceiver without starting real Android services.
- *
- * AlarmReceiver creates Android-specific collaborators internally, so each test
- * uses an anonymous subclass to inject mocks for repository, scheduler,
- * wake lock, and goAsync() pending result. `advanceUntilIdle()` drains the
- * coroutine launched from onReceive() so assertions are deterministic.
- */
+/** Tests alarm broadcasts without starting Android services or scheduling real alarms. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AlarmReceiverTest {
 
@@ -50,62 +45,39 @@ class AlarmReceiverTest {
 
     @Before
     fun setup() {
-        // onReceive() switches to Dispatchers.Main before starting playback.
-        // The test dispatcher makes that main-thread work controllable in JVM tests.
         Dispatchers.setMain(mainDispatcher)
 
-        // Mock Log because android.util.Log is a framework stub in local unit tests.
+        // android.util.Log is a framework stub in local JVM tests.
         mockkStatic(Log::class)
         every { Log.d(any<String>(), any<String>()) } returns 0
         every { Log.e(any<String>(), any<String>()) } returns 0
         every { Log.e(any<String>(), any<String>(), any<Throwable>()) } returns 0
         every { Log.w(any<String>(), any<String>()) } returns 0
+
+        every { pendingResult.finish() } just runs
+        every { wakeLock.isHeld } returns true
+        every { wakeLock.acquire(any<Long>()) } just runs
+        every { wakeLock.release() } just runs
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(Log::class)
     }
 
     @Test
     fun recurringAlarm_reschedulesNextAlarm() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-
-        every { repository.settings } returns flowOf(
-            AlarmSettings(
-                enabled = true,
+        givenSettings(
+            alarmSettings(
                 hour = 7,
                 minute = 30,
-                volume = 50,
                 enabledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY),
                 progressiveVolume = true
             )
         )
-        every { pendingResult.finish() } just runs
-        every { wakeLock.isHeld } returns true
-        every { wakeLock.acquire(any<Long>()) } just runs
-        every { wakeLock.release() } just runs
-
         var playbackStarted = false
-
-        val receiver = object : AlarmReceiver() {
-            override fun createRepository(context: Context): AlarmSettingsRepository = repository
-
-            override fun createScheduler(context: Context): AlarmScheduler = scheduler
-
-            override fun createScope(): CoroutineScope = scope
-
-            override fun createPendingResult(): PendingResult = pendingResult
-
-            override fun createWakeLock(context: Context): PowerManager.WakeLock = wakeLock
-
-            override fun areNotificationsAllowed(context: Context): Boolean = true
-
-            override fun startPlaybackService(context: Context) {
-                playbackStarted = true
-            }
-        }
+        val receiver = testReceiver(this) { playbackStarted = true }
 
         receiver.onReceive(context, null)
         advanceUntilIdle()
@@ -118,49 +90,14 @@ class AlarmReceiverTest {
             )
         }
         coVerify(exactly = 0) { repository.setEnabled(any()) }
-        verify(exactly = 1) { wakeLock.acquire(any<Long>()) }
-        verify(exactly = 1) { wakeLock.release() }
-        verify(exactly = 1) { pendingResult.finish() }
-        assert(playbackStarted)
+        verifyReceiverCleanup()
+        assertTrue(playbackStarted)
     }
 
     @Test
     fun oneShotAlarm_disablesAlarmAfterItFires() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-
-        every { repository.settings } returns flowOf(
-            AlarmSettings(
-                enabled = true,
-                hour = 7,
-                minute = 30,
-                volume = 50,
-                enabledDays = emptySet(),
-                progressiveVolume = false
-            )
-        )
-        every { pendingResult.finish() } just runs
-        every { wakeLock.isHeld } returns true
-        every { wakeLock.acquire(any<Long>()) } just runs
-        every { wakeLock.release() } just runs
-
-        // Empty enabledDays represents a one-shot alarm; once it fires, the
-        // repository should be updated so the UI no longer shows it enabled.
-        val receiver = object : AlarmReceiver() {
-            override fun createRepository(context: Context): AlarmSettingsRepository = repository
-
-            override fun createScheduler(context: Context): AlarmScheduler = scheduler
-
-            override fun createScope(): CoroutineScope = scope
-
-            override fun createPendingResult(): PendingResult = pendingResult
-
-            override fun createWakeLock(context: Context): PowerManager.WakeLock = wakeLock
-
-            override fun areNotificationsAllowed(context: Context): Boolean = true
-
-            override fun startPlaybackService(context: Context) = Unit
-        }
+        givenSettings(alarmSettings(enabledDays = emptySet()))
+        val receiver = testReceiver(this)
 
         receiver.onReceive(context, null)
         advanceUntilIdle()
@@ -172,41 +109,13 @@ class AlarmReceiverTest {
 
     @Test
     fun disabledAlarm_doesNotReschedule() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-
-        every { repository.settings } returns flowOf(
-            AlarmSettings(
+        givenSettings(
+            alarmSettings(
                 enabled = false,
-                hour = 7,
-                minute = 30,
-                volume = 50,
-                enabledDays = setOf(DayOfWeek.TUESDAY),
-                progressiveVolume = false
+                enabledDays = setOf(DayOfWeek.TUESDAY)
             )
         )
-        every { pendingResult.finish() } just runs
-        every { wakeLock.isHeld } returns true
-        every { wakeLock.acquire(any<Long>()) } just runs
-        every { wakeLock.release() } just runs
-
-        // A disabled alarm can still receive a stale broadcast, but it should
-        // not reschedule or change repository state.
-        val receiver = object : AlarmReceiver() {
-            override fun createRepository(context: Context): AlarmSettingsRepository = repository
-
-            override fun createScheduler(context: Context): AlarmScheduler = scheduler
-
-            override fun createScope(): CoroutineScope = scope
-
-            override fun createPendingResult(): PendingResult = pendingResult
-
-            override fun createWakeLock(context: Context): PowerManager.WakeLock = wakeLock
-
-            override fun areNotificationsAllowed(context: Context): Boolean = true
-
-            override fun startPlaybackService(context: Context) = Unit
-        }
+        val receiver = testReceiver(this)
 
         receiver.onReceive(context, null)
         advanceUntilIdle()
@@ -217,46 +126,14 @@ class AlarmReceiverTest {
     }
 
     @Test
-    fun notificationsDenied_skipsNotificationAndPlayback_andDisablesOneShotAlarm() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-
-        every { repository.settings } returns flowOf(
-            AlarmSettings(
-                enabled = true,
-                hour = 7,
-                minute = 30,
-                volume = 50,
-                enabledDays = emptySet(),
-                progressiveVolume = false
-            )
-        )
-        every { pendingResult.finish() } just runs
-        every { wakeLock.isHeld } returns true
-        every { wakeLock.acquire(any<Long>()) } just runs
-        every { wakeLock.release() } just runs
-
+    fun notificationsDenied_skipsPlaybackAndDisablesOneShotAlarm() = runTest {
+        givenSettings(alarmSettings(enabledDays = emptySet()))
         var playbackStarted = false
-
-        // Even when playback is blocked by notification permission, one-shot
-        // alarms should still be disabled after their stale broadcast is handled.
-        val receiver = object : AlarmReceiver() {
-            override fun createRepository(context: Context): AlarmSettingsRepository = repository
-
-            override fun createScheduler(context: Context): AlarmScheduler = scheduler
-
-            override fun createScope(): CoroutineScope = scope
-
-            override fun createPendingResult(): PendingResult = pendingResult
-
-            override fun createWakeLock(context: Context): PowerManager.WakeLock = wakeLock
-
-            override fun areNotificationsAllowed(context: Context): Boolean = false
-
-            override fun startPlaybackService(context: Context) {
-                playbackStarted = true
-            }
-        }
+        val receiver = testReceiver(
+            scope = this,
+            notificationsAllowed = false,
+            onPlaybackStart = { playbackStarted = true }
+        )
 
         receiver.onReceive(context, null)
         advanceUntilIdle()
@@ -264,56 +141,29 @@ class AlarmReceiverTest {
         verify(exactly = 0) { scheduler.scheduleNextAlarm(any(), any(), any()) }
         coVerify(exactly = 1) { repository.setEnabled(false) }
         verify(exactly = 1) { pendingResult.finish() }
-        assert(!playbackStarted)
+        assertFalse(playbackStarted)
     }
 
     @Test
-    fun notificationsDenied_skipsPlayback_butReschedulesRecurringAlarm() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-
-        every { repository.settings } returns flowOf(
-            AlarmSettings(
-                enabled = true,
+    fun notificationsDenied_skipsPlaybackButReschedulesRecurringAlarm() = runTest {
+        givenSettings(
+            alarmSettings(
                 hour = 6,
                 minute = 45,
-                volume = 80,
                 enabledDays = setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY),
                 progressiveVolume = true
             )
         )
-        every { pendingResult.finish() } just runs
-        every { wakeLock.isHeld } returns true
-        every { wakeLock.acquire(any<Long>()) } just runs
-        every { wakeLock.release() } just runs
-
         var playbackStarted = false
-
-        // Override factory methods so receiver logic runs while all Android
-        // side effects are replaced by mocks we can verify.
-        val receiver = object : AlarmReceiver() {
-            override fun createRepository(context: Context): AlarmSettingsRepository = repository
-
-            override fun createScheduler(context: Context): AlarmScheduler = scheduler
-
-            override fun createScope(): CoroutineScope = scope
-
-            override fun createPendingResult(): PendingResult = pendingResult
-
-            override fun createWakeLock(context: Context): PowerManager.WakeLock = wakeLock
-
-            override fun areNotificationsAllowed(context: Context): Boolean = false
-
-            override fun startPlaybackService(context: Context) {
-                playbackStarted = true
-            }
-        }
+        val receiver = testReceiver(
+            scope = this,
+            notificationsAllowed = false,
+            onPlaybackStart = { playbackStarted = true }
+        )
 
         receiver.onReceive(context, null)
         advanceUntilIdle()
 
-        // Recurring alarms should schedule the next occurrence and keep
-        // the alarm enabled.
         verify(exactly = 1) {
             scheduler.scheduleNextAlarm(
                 hour = 6,
@@ -324,53 +174,69 @@ class AlarmReceiverTest {
         coVerify(exactly = 0) { repository.setEnabled(any()) }
         verify(exactly = 1) { pendingResult.finish() }
         verify(exactly = 1) { wakeLock.release() }
-        assert(!playbackStarted)
+        assertFalse(playbackStarted)
     }
 
     @Test
     fun repositoryFailure_releasesWakeLockAndFinishesPendingResult() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-
-        // Simulates a DataStore read failure after the receiver has already
-        // acquired resources for asynchronous broadcast handling.
         every { repository.settings } returns flow {
             throw IllegalStateException("DataStore read failed")
         }
-        every { pendingResult.finish() } just runs
-        every { wakeLock.isHeld } returns true
-        every { wakeLock.acquire(any<Long>()) } just runs
-        every { wakeLock.release() } just runs
-
         var playbackStarted = false
-
-        val receiver = object : AlarmReceiver() {
-            override fun createRepository(context: Context): AlarmSettingsRepository = repository
-
-            override fun createScheduler(context: Context): AlarmScheduler = scheduler
-
-            override fun createScope(): CoroutineScope = scope
-
-            override fun createPendingResult(): PendingResult = pendingResult
-
-            override fun createWakeLock(context: Context): PowerManager.WakeLock = wakeLock
-
-            override fun areNotificationsAllowed(context: Context): Boolean = true
-
-            override fun startPlaybackService(context: Context) {
-                playbackStarted = true
-            }
-        }
+        val receiver = testReceiver(this) { playbackStarted = true }
 
         receiver.onReceive(context, null)
         advanceUntilIdle()
 
-        // Cleanup must happen on failure to avoid a leaked wake lock or an
-        // unfinished goAsync() pending result.
         verify(exactly = 0) { scheduler.scheduleNextAlarm(any(), any(), any()) }
         coVerify(exactly = 0) { repository.setEnabled(any()) }
         verify(exactly = 1) { wakeLock.release() }
         verify(exactly = 1) { pendingResult.finish() }
-        assert(!playbackStarted)
+        assertFalse(playbackStarted)
+    }
+
+    private fun givenSettings(settings: AlarmSettings) {
+        every { repository.settings } returns flowOf(settings)
+    }
+
+    private fun alarmSettings(
+        enabled: Boolean = true,
+        hour: Int = 7,
+        minute: Int = 30,
+        enabledDays: Set<DayOfWeek>,
+        progressiveVolume: Boolean = false
+    ) = AlarmSettings(
+        enabled = enabled,
+        hour = hour,
+        minute = minute,
+        volume = 50,
+        enabledDays = enabledDays,
+        progressiveVolume = progressiveVolume
+    )
+
+    private fun testReceiver(
+        scope: CoroutineScope,
+        notificationsAllowed: Boolean = true,
+        onPlaybackStart: () -> Unit = {}
+    ): AlarmReceiver = object : AlarmReceiver() {
+        override fun createRepository(context: Context): AlarmSettingsRepository = repository
+
+        override fun createScheduler(context: Context): AlarmScheduler = scheduler
+
+        override fun createScope(): CoroutineScope = scope
+
+        override fun createPendingResult(): PendingResult = pendingResult
+
+        override fun createWakeLock(context: Context): PowerManager.WakeLock = wakeLock
+
+        override fun areNotificationsAllowed(context: Context): Boolean = notificationsAllowed
+
+        override fun startPlaybackService(context: Context) = onPlaybackStart()
+    }
+
+    private fun verifyReceiverCleanup() {
+        verify(exactly = 1) { wakeLock.acquire(any<Long>()) }
+        verify(exactly = 1) { wakeLock.release() }
+        verify(exactly = 1) { pendingResult.finish() }
     }
 }
