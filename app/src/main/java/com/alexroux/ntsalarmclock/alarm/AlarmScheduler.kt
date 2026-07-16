@@ -1,5 +1,6 @@
 package com.alexroux.ntsalarmclock.alarm
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -68,6 +69,7 @@ class AlarmScheduler(private val context: Context) {
      * Alarm-clock scheduling is preferred because it gives Android the correct
      * alarm affordances. Restricted exact alarms fall back to inexact scheduling.
      */
+    @SuppressLint("MissingPermission")
     private fun scheduleAlarmAt(triggerAtMillis: Long) {
         val alarmPendingIntent = createAlarmPendingIntent()
 
@@ -96,6 +98,7 @@ class AlarmScheduler(private val context: Context) {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun scheduleExactFallback(
         triggerAtMillis: Long,
         alarmPendingIntent: PendingIntent
