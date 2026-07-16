@@ -42,9 +42,7 @@ fun HomeProgressiveVolumeSection(
         val progressiveVolumeDescription = stringResource(R.string.progressive_volume)
         Switch(
             checked = progressiveVolume,
-            onCheckedChange = {
-                onProgressiveVolumeEnabledChange(it)
-            },
+            onCheckedChange = onProgressiveVolumeEnabledChange,
             modifier = Modifier.semantics {
                 contentDescription = progressiveVolumeDescription
             }

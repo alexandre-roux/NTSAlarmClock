@@ -7,6 +7,8 @@ import com.alexroux.ntsalarmclock.data.DataStoreAlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.alarmSettingsDataStore
 import com.alexroux.ntsalarmclock.data.nts.NtsNetwork
 import com.alexroux.ntsalarmclock.data.nts.NtsRepository
+import com.alexroux.ntsalarmclock.ui.screens.home.AlarmScheduleTextFormatter
+import com.alexroux.ntsalarmclock.ui.screens.home.ResourceAlarmScheduleTextFormatter
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,21 +24,22 @@ object AppModule {
     @Singleton
     fun provideAlarmSettingsRepository(
         @ApplicationContext context: Context
-    ): AlarmSettingsRepository {
-        return DataStoreAlarmSettingsRepository(context.alarmSettingsDataStore)
-    }
+    ): AlarmSettingsRepository =
+        DataStoreAlarmSettingsRepository(context.alarmSettingsDataStore)
 
     @Provides
     @Singleton
     fun provideAlarmScheduler(
         @ApplicationContext context: Context
-    ): AlarmScheduler {
-        return AlarmScheduler(context)
-    }
+    ): AlarmScheduler = AlarmScheduler(context)
 
     @Provides
     @Singleton
-    fun provideNtsRepository(): NtsRepository {
-        return NtsRepository(NtsNetwork.api)
-    }
+    fun provideAlarmScheduleTextFormatter(
+        @ApplicationContext context: Context
+    ): AlarmScheduleTextFormatter = ResourceAlarmScheduleTextFormatter(context.resources)
+
+    @Provides
+    @Singleton
+    fun provideNtsRepository(): NtsRepository = NtsRepository(NtsNetwork.api)
 }

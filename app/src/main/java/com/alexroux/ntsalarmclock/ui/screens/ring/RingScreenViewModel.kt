@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.alexroux.ntsalarmclock.alarm.AlarmNotification.NOTIFICATION_ID
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
 import com.alexroux.ntsalarmclock.data.nts.NtsRepository
+import com.alexroux.ntsalarmclock.logging.NtsLogger
 import com.alexroux.ntsalarmclock.playback.PlaybackService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -17,10 +18,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
+
+private const val CURRENT_SHOW_REFRESH_INTERVAL_MS = 60_000L
 
 @HiltViewModel
 class RingScreenViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val repository: AlarmSettingsRepository,
     private val ntsRepository: NtsRepository
 ) : ViewModel() {
@@ -28,11 +32,11 @@ class RingScreenViewModel @Inject constructor(
     private val _currentShow = MutableStateFlow<String?>(null)
     val currentShow: StateFlow<String?> = _currentShow.asStateFlow()
 
-    private val _volumeLive = MutableStateFlow(70)
-    val volumeLive: StateFlow<Int> = _volumeLive.asStateFlow()
+    private val _currentVolume = MutableStateFlow(70)
+    val currentVolume: StateFlow<Int> = _currentVolume.asStateFlow()
 
     init {
-        startFetchingCurrentShow()
+        refreshCurrentShowPeriodically()
         observeVolume()
     }
 
@@ -50,49 +54,51 @@ class RingScreenViewModel @Inject constructor(
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
     }
 
-    /**
-     * Live change → update UI + player ONLY (no persistence)
-     */
-    fun onVolumeLiveChange(volume: Int) {
-        val sanitized = volume.coerceIn(0, 100)
-        _volumeLive.value = sanitized
+    /** Updates the UI and player immediately while the user moves the slider. */
+    fun onVolumeChange(volume: Int) {
+        val safeVolume = volume.coerceIn(0, 100)
+        _currentVolume.value = safeVolume
 
         val intent = Intent(context, PlaybackService::class.java).apply {
             action = PlaybackService.ACTION_SET_VOLUME
-            putExtra(PlaybackService.EXTRA_VOLUME, sanitized)
+            putExtra(PlaybackService.EXTRA_VOLUME, safeVolume)
         }
         context.startService(intent)
     }
 
-    /**
-     * Final change → persist only
-     */
+    /** Persists the final slider value when the user stops dragging. */
     fun onVolumeChangeFinished(volume: Int) {
-        val sanitized = volume.coerceIn(0, 100)
-        _volumeLive.value = sanitized
+        val safeVolume = volume.coerceIn(0, 100)
+        _currentVolume.value = safeVolume
 
         viewModelScope.launch {
-            repository.setVolume(sanitized)
+            repository.setVolume(safeVolume)
         }
     }
 
-    /**
-     * Keep UI in sync with DataStore (hardware buttons, etc.)
-     */
+    /** Keeps the slider synchronized with persisted and hardware-button changes. */
     private fun observeVolume() {
         viewModelScope.launch {
             repository.settings.collect { settings ->
-                _volumeLive.value = settings.volume
+                _currentVolume.value = settings.volume
             }
         }
     }
 
-    private fun startFetchingCurrentShow() {
+    private fun refreshCurrentShowPeriodically() {
         viewModelScope.launch {
             while (true) {
-                _currentShow.value = ntsRepository.getCurrentShow()
-                delay(60_000)
+                ntsRepository.getCurrentShow()
+                    .onSuccess { showTitle -> _currentShow.value = showTitle }
+                    .onFailure { error ->
+                        NtsLogger.w(TAG, "Unable to refresh the current NTS show: ${error.message}")
+                    }
+                delay(CURRENT_SHOW_REFRESH_INTERVAL_MS.milliseconds)
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "RingScreenViewModel"
     }
 }

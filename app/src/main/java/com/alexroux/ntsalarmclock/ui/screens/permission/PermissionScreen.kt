@@ -61,46 +61,17 @@ fun PermissionScreen(
     onAllowClick: () -> Unit,
     onOpenSettingsClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = stringResource(R.string.notifications_permission_required),
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
-        )
+    val shouldOpenSettings =
+        deniedCount >= PermissionViewModel.NOTIFICATION_SETTINGS_DENIAL_THRESHOLD
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = stringResource(R.string.this_app_needs_notification_permission_to_work),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(36.dp))
-
-        // After repeated denial, Android may stop showing a useful permission
-        // dialog. Sending the user to app settings is the clearer recovery path.
-        if (deniedCount >= PermissionViewModel.NOTIFICATION_SETTINGS_DENIAL_THRESHOLD) {
-            NTSButton(
-                text = stringResource(R.string.open_settings),
-                textStyle = MaterialTheme.typography.headlineMedium,
-                onClick = onOpenSettingsClick
-            )
-        } else {
-            NTSButton(
-                text = stringResource(R.string.allow_notifications),
-                textStyle = MaterialTheme.typography.headlineMedium,
-                onClick = onAllowClick
-            )
-        }
-    }
+    PermissionPrompt(
+        title = stringResource(R.string.notifications_permission_required),
+        description = stringResource(R.string.this_app_needs_notification_permission_to_work),
+        actionText = stringResource(
+            if (shouldOpenSettings) R.string.open_settings else R.string.allow_notifications
+        ),
+        onActionClick = if (shouldOpenSettings) onOpenSettingsClick else onAllowClick
+    )
 }
 
 @Composable
@@ -109,6 +80,21 @@ fun OverlayPermissionScreen(
 ) {
     // Overlay permission cannot be requested with ActivityResultContracts, so
     // the button opens the Android settings screen.
+    PermissionPrompt(
+        title = stringResource(R.string.overlay_permission_required),
+        description = stringResource(R.string.overlay_permission_explanation),
+        actionText = stringResource(R.string.allow_overlay),
+        onActionClick = onAllowClick
+    )
+}
+
+@Composable
+private fun PermissionPrompt(
+    title: String,
+    description: String,
+    actionText: String,
+    onActionClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -117,7 +103,7 @@ fun OverlayPermissionScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = stringResource(R.string.overlay_permission_required),
+            text = title,
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
@@ -125,7 +111,7 @@ fun OverlayPermissionScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = stringResource(R.string.overlay_permission_explanation),
+            text = description,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
             textAlign = TextAlign.Center
@@ -134,9 +120,9 @@ fun OverlayPermissionScreen(
         Spacer(modifier = Modifier.height(36.dp))
 
         NTSButton(
-            text = stringResource(R.string.allow_overlay),
+            text = actionText,
             textStyle = MaterialTheme.typography.headlineMedium,
-            onClick = onAllowClick
+            onClick = onActionClick
         )
     }
 }

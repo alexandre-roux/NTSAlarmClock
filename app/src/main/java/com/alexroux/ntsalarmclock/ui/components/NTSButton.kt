@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,7 +49,7 @@ fun NTSButton(
     onClick: () -> Unit
 ) {
     val density = LocalDensity.current
-    var textWidthPx by remember(text, textStyle) { mutableIntStateOf(0) }
+    var widestLineWidthPx by remember(text, textStyle) { mutableIntStateOf(0) }
 
     Box(
         modifier = modifier
@@ -62,31 +63,33 @@ fun NTSButton(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            modifier = if (textWidthPx > 0) {
-                Modifier.width(with(density) { textWidthPx.toDp() })
-            } else {
+            modifier = if (widestLineWidthPx == 0) {
                 Modifier
+            } else {
+                Modifier.width(with(density) { widestLineWidthPx.toDp() })
             },
             text = text,
             color = Color.Black,
             style = textStyle,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            onTextLayout = { textLayoutResult ->
-                val widestLinePx = (0 until textLayoutResult.lineCount)
-                    .maxOfOrNull { lineIndex ->
-                        textLayoutResult.getLineRight(lineIndex) -
-                                textLayoutResult.getLineLeft(lineIndex)
-                    }
-                    ?.let { ceil(it).toInt() }
-                    ?: 0
-
-                if (textWidthPx != widestLinePx) {
-                    textWidthPx = widestLinePx
+            onTextLayout = { layout ->
+                val measuredWidth = layout.widestLineWidthPx()
+                if (measuredWidth != widestLineWidthPx) {
+                    widestLineWidthPx = measuredWidth
                 }
             }
         )
     }
+}
+
+/** Keeps a wrapped button only as wide as its widest rendered line. */
+private fun TextLayoutResult.widestLineWidthPx(): Int {
+    val widestLine = (0 until lineCount).maxOfOrNull { lineIndex ->
+        getLineRight(lineIndex) - getLineLeft(lineIndex)
+    } ?: 0f
+
+    return ceil(widestLine).toInt()
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000, name = "NTS Button")

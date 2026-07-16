@@ -3,7 +3,6 @@ package com.alexroux.ntsalarmclock
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -38,9 +37,7 @@ class PermissionActivity : ComponentActivity() {
 
     private val viewModel: PermissionViewModel by viewModels()
 
-    // Runtime permission requests must be launched by an Activity. The result is
-    // immediately forwarded to the ViewModel so the flow decision stays there.
-    private val requestNotificationPermissionLauncher =
+    private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             viewModel.onNotificationPermissionResult(granted)
         }
@@ -49,19 +46,15 @@ class PermissionActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         NtsLogger.d(TAG, "onCreate: initializing permission flow")
-        // Seed the ViewModel with the current system state before the first
-        // composition, so the correct permission step is shown immediately.
-        refreshPermissionState(source = "onCreate")
+        refreshPermissions(source = "onCreate")
 
         setContent {
             val uiState by viewModel.uiState.collectAsState()
 
             LaunchedEffect(uiState) {
                 NtsLogger.d(TAG, "uiState=$uiState")
-                // Navigation is a one-off Android side effect, so the Activity
-                // reacts to the terminal ViewModel state instead of the composable.
                 if (uiState == PermissionUiState.Completed) {
-                    goToMainAndFinish()
+                    continueToMainActivity()
                 }
             }
 
@@ -69,9 +62,9 @@ class PermissionActivity : ComponentActivity() {
                 Surface {
                     PermissionRoute(
                         uiState = uiState,
-                        onAllowNotificationsClick = { requestNotificationsPermission() },
-                        onOpenNotificationSettingsClick = { openAppSettings() },
-                        onAllowOverlayClick = { openOverlaySettings() }
+                        onAllowNotificationsClick = ::requestNotificationPermission,
+                        onOpenNotificationSettingsClick = ::openNotificationSettings,
+                        onAllowOverlayClick = ::openOverlaySettings
                     )
                 }
             }
@@ -81,13 +74,12 @@ class PermissionActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
 
-        // Refresh after returning from permission dialogs or system settings.
-        refreshPermissionState(source = "onResume")
+        refreshPermissions(source = "onResume")
     }
 
-    private fun refreshPermissionState(source: String) {
-        val notificationsGranted = checkNotificationsGranted()
-        val overlayGranted = checkOverlayGranted()
+    private fun refreshPermissions(source: String) {
+        val notificationsGranted = hasNotificationPermission()
+        val overlayGranted = hasOverlayPermission()
 
         NtsLogger.d(
             TAG,
@@ -100,45 +92,44 @@ class PermissionActivity : ComponentActivity() {
         )
     }
 
-    private fun checkNotificationsGranted(): Boolean {
+    private fun hasNotificationPermission(): Boolean {
         // POST_NOTIFICATIONS only exists as a runtime permission on Android 13+.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+
         return ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun checkOverlayGranted(): Boolean {
-        return Settings.canDrawOverlays(this)
-    }
+    private fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(this)
 
-    private fun requestNotificationsPermission() {
+    private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            NtsLogger.d(TAG, "requestNotificationsPermission: launching POST_NOTIFICATIONS request")
-            requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            NtsLogger.d(TAG, "requestNotificationPermission: launching POST_NOTIFICATIONS request")
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             NtsLogger.d(
                 TAG,
-                "requestNotificationsPermission: skipped on API ${Build.VERSION.SDK_INT}"
+                "requestNotificationPermission: skipped on API ${Build.VERSION.SDK_INT}"
             )
             viewModel.onNotificationPermissionResult(granted = true)
         }
     }
 
-    private fun openAppSettings() {
-        NtsLogger.d(TAG, "openAppSettings: opening notification permission recovery screen")
+    private fun openNotificationSettings() {
+        NtsLogger.d(TAG, "openNotificationSettings: opening app settings")
         startActivity(
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.fromParts("package", packageName, null)
-            }
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                "package:$packageName".toUri()
+            )
         )
     }
 
     private fun openOverlaySettings() {
         NtsLogger.d(TAG, "openOverlaySettings: opening SYSTEM_ALERT_WINDOW settings")
-        // Android overlay settings do not return a permission result callback.
-        // Mark the intent launch before leaving so onResume can complete the flow.
+        // Overlay settings have no result callback, so onResume checks the permission again.
         viewModel.onOverlaySettingsOpened()
         startActivity(
             Intent(
@@ -148,8 +139,8 @@ class PermissionActivity : ComponentActivity() {
         )
     }
 
-    private fun goToMainAndFinish() {
-        NtsLogger.d(TAG, "goToMainAndFinish: permission flow completed")
+    private fun continueToMainActivity() {
+        NtsLogger.d(TAG, "continueToMainActivity: permission flow completed")
         startActivity(Intent(this, MainActivity::class.java))
         finish()
     }

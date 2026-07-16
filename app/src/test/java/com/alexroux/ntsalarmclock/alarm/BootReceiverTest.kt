@@ -6,7 +6,6 @@ import android.content.Intent
 import android.util.Log
 import com.alexroux.ntsalarmclock.data.AlarmSettings
 import com.alexroux.ntsalarmclock.data.AlarmSettingsRepository
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -18,20 +17,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.time.DayOfWeek
 
 /**
- * JVM tests for restoring alarm state after device reboot.
+ * Tests restoration of persisted alarm state after a device reboot.
  *
- * BootReceiver uses Android broadcast APIs and DataStore-backed collaborators,
- * so tests inject mocks through the receiver's factory methods and drive the
- * asynchronous work with a TestScope.
+ * Android deletes AlarmManager registrations when a device restarts, but DataStore preferences remain.
+ * [BootReceiver] must therefore read the saved [AlarmSettings] and either recreate an enabled alarm or
+ * remove stale scheduling for a disabled one.
+ *
+ * The receiver normally calls `goAsync()` and launches work outside `onReceive`. [testReceiver] replaces
+ * its repository, scheduler, coroutine scope, and [BroadcastReceiver.PendingResult] with test-controlled
+ * objects. `advanceUntilIdle()` then completes that asynchronous work without a real device reboot.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BootReceiverTest {
@@ -44,10 +46,11 @@ class BootReceiverTest {
 
     @Before
     fun setup() {
-        // Mock Log because android.util.Log is a framework stub in local unit tests.
+        // android.util.Log is a framework stub in local JVM tests.
         mockkStatic(Log::class)
         every { Log.d(any<String>(), any<String>()) } returns 0
         every { Log.e(any<String>(), any<String>(), any<Throwable>()) } returns 0
+        every { Log.w(any<String>(), any<String>()) } returns 0
 
         every { bootIntent.action } returns Intent.ACTION_BOOT_COMPLETED
         every { pendingResult.finish() } just runs
@@ -58,116 +61,131 @@ class BootReceiverTest {
         unmockkAll()
     }
 
+    /**
+     * Given persisted settings for an enabled 06:15 alarm repeating Monday and Friday, a boot-completed
+     * broadcast should pass that exact configuration to the scheduler. Verifying zero cancellations
+     * distinguishes restoration from the disabled path. Finishing the pending result proves Android is
+     * told that asynchronous receiver work is complete.
+     */
     @Test
     fun bootCompleted_reschedulesEnabledAlarm() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-
-        every { repository.settings } returns flowOf(
-            AlarmSettings(
+        givenSettings(
+            alarmSettings(
                 enabled = true,
                 hour = 6,
                 minute = 15,
-                volume = 70,
-                enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR),
-                progressiveVolume = false
+                enabledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)
             )
         )
-
-        val receiver = testReceiver(scope)
+        val receiver = testReceiver(this)
 
         receiver.onReceive(context, bootIntent)
         advanceUntilIdle()
 
-        // Android clears AlarmManager entries on reboot; an enabled persisted
-        // alarm must be scheduled again with the exact stored schedule.
         verify(exactly = 1) {
             scheduler.scheduleNextAlarm(
                 hour = 6,
                 minute = 15,
-                enabledDays = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR)
+                enabledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)
             )
         }
-        verify(exactly = 0) { scheduler.cancel() }
+        verify(exactly = 0) { scheduler.cancelAlarm() }
         verify(exactly = 1) { pendingResult.finish() }
     }
 
+    /**
+     * Given saved settings with `enabled = false`, boot restoration must not schedule anything. It still
+     * calls cancellation because a stale AlarmManager entry could survive inconsistent app state. The
+     * final `finish()` verification checks the asynchronous broadcast lifecycle in this branch too.
+     */
     @Test
     fun bootCompleted_cancelsDisabledAlarmState() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-
-        every { repository.settings } returns flowOf(
-            AlarmSettings(
+        givenSettings(
+            alarmSettings(
                 enabled = false,
                 hour = 8,
                 minute = 0,
-                volume = 50,
-                enabledDays = emptySet(),
-                progressiveVolume = false
+                enabledDays = emptySet()
             )
         )
-
-        val receiver = testReceiver(scope)
+        val receiver = testReceiver(this)
 
         receiver.onReceive(context, bootIntent)
         advanceUntilIdle()
 
-        // If persisted state says the alarm is disabled, reboot handling should
-        // clear any stale schedule instead of creating a new one.
         verify(exactly = 0) { scheduler.scheduleNextAlarm(any(), any(), any()) }
-        verify(exactly = 1) { scheduler.cancel() }
+        verify(exactly = 1) { scheduler.cancelAlarm() }
         verify(exactly = 1) { pendingResult.finish() }
     }
 
+    /**
+     * The fake settings flow throws to simulate DataStore being unavailable or corrupted. With no valid
+     * state, scheduling or cancellation would be a guess, so both call counts must remain zero. Even on
+     * failure, `PendingResult.finish()` must run; otherwise Android may treat the receiver as stuck.
+     */
     @Test
     fun bootCompleted_finishesPendingResultWhenRepositoryFails() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-
         every { repository.settings } returns flow {
             throw IllegalStateException("DataStore unavailable")
         }
-
-        val receiver = testReceiver(scope)
+        val receiver = testReceiver(this)
 
         receiver.onReceive(context, bootIntent)
         advanceUntilIdle()
 
-        // goAsync() must always be completed, even when persisted settings
-        // cannot be read during reboot recovery.
         verify(exactly = 0) { scheduler.scheduleNextAlarm(any(), any(), any()) }
-        verify(exactly = 0) { scheduler.cancel() }
+        verify(exactly = 0) { scheduler.cancelAlarm() }
         verify(exactly = 1) { pendingResult.finish() }
     }
 
+    /**
+     * [BootReceiver] may be invoked with an unrelated action, represented here by `ACTION_TIME_CHANGED`.
+     * The receiver should return before creating asynchronous work, so neither scheduler method nor the
+     * test pending result is touched. This prevents accidental restoration for broadcasts it does not own.
+     */
     @Test
     fun nonBootBroadcast_isIgnored() = runTest {
-        val otherIntent = mockk<Intent> {
+        val timeChangedIntent = mockk<Intent> {
             every { action } returns Intent.ACTION_TIME_CHANGED
         }
+        val receiver = testReceiver(this)
 
-        val receiver = testReceiver(TestScope(UnconfinedTestDispatcher(testScheduler)))
-
-        receiver.onReceive(context, otherIntent)
+        receiver.onReceive(context, timeChangedIntent)
         advanceUntilIdle()
 
-        // The receiver is registered for BOOT_COMPLETED only; unrelated
-        // broadcasts should not start async work or touch scheduling.
         verify(exactly = 0) { scheduler.scheduleNextAlarm(any(), any(), any()) }
-        verify(exactly = 0) { scheduler.cancel() }
+        verify(exactly = 0) { scheduler.cancelAlarm() }
         verify(exactly = 0) { pendingResult.finish() }
     }
 
-    private fun testReceiver(scope: CoroutineScope): BootReceiver {
-        return object : BootReceiver() {
-            override fun createRepository(context: Context): AlarmSettingsRepository = repository
+    private fun givenSettings(settings: AlarmSettings) {
+        // A one-value flow models DataStore emitting its current persisted snapshot.
+        every { repository.settings } returns flowOf(settings)
+    }
 
-            override fun createScheduler(context: Context): AlarmScheduler = scheduler
+    private fun alarmSettings(
+        enabled: Boolean,
+        hour: Int,
+        minute: Int,
+        enabledDays: Set<DayOfWeek>
+    ) = AlarmSettings(
+        enabled = enabled,
+        hour = hour,
+        minute = minute,
+        volume = 50,
+        enabledDays = enabledDays,
+        progressiveVolume = false
+    )
 
-            override fun createScope(): CoroutineScope = scope
+    private fun testReceiver(scope: CoroutineScope): BootReceiver = object : BootReceiver() {
+        // Production dependencies are created inside the receiver. Overriding these factory methods
+        // keeps the test on the JVM and routes asynchronous work through runTest's controlled scope.
+        override fun createRepository(context: Context): AlarmSettingsRepository = repository
 
-            override fun createPendingResult(): PendingResult = pendingResult
-        }
+        override fun createScheduler(context: Context): AlarmScheduler = scheduler
+
+        override fun createScope(): CoroutineScope = scope
+
+        override fun createPendingResult(): PendingResult = pendingResult
     }
 }

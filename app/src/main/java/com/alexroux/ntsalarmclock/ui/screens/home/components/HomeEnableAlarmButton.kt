@@ -19,8 +19,12 @@ fun HomeEnableAlarmButton(
     isAlarmEnabled: Boolean,
     onClick: () -> Unit
 ) {
+    val label = stringResource(
+        if (isAlarmEnabled) R.string.cancel_alarm else R.string.set_alarm
+    )
+
     NTSButton(
-        text = if (isAlarmEnabled) stringResource(R.string.cancel_alarm) else stringResource(R.string.set_alarm),
+        text = label,
         onClick = onClick
     )
 }

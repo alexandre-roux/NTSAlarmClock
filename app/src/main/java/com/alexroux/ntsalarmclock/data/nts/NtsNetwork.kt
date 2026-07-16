@@ -3,22 +3,16 @@ package com.alexroux.ntsalarmclock.data.nts
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-/**
- * Singleton responsible for providing Retrofit + API instance.
- * Ensures that Retrofit is created only once in the app lifecycle.
- */
+private const val NTS_BASE_URL = "https://www.nts.live/"
+
+/** Creates the shared NTS API client when it is first requested. */
 object NtsNetwork {
 
-    // Lazy initialization ensures thread-safe singleton
-    private val retrofit: Retrofit by lazy {
+    val api: NtsApi by lazy {
         Retrofit.Builder()
-            .baseUrl("https://www.nts.live/")
+            .baseUrl(NTS_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-    }
-
-    // Expose API as singleton
-    val api: NtsApi by lazy {
-        retrofit.create(NtsApi::class.java)
+            .create(NtsApi::class.java)
     }
 }

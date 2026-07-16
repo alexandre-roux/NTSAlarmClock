@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import io.mockk.every
 import io.mockk.mockkStatic
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,56 +15,83 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.nio.file.Files
+import java.time.DayOfWeek
 
 /**
- * Repository tests backed by a real temporary Preferences DataStore.
+ * Tests the repository with an isolated, real Preferences DataStore.
  *
- * Using the actual DataStore implementation verifies key names, defaults, and
- * serialization without writing to the app's production preferences file.
+ * Unlike a mock, the temporary DataStore performs the same serialization and asynchronous edits as
+ * production. Each test creates its own temporary file, so no preferences leak between tests. Calling
+ * `repository.settings.first()` waits for the first mapped [AlarmSettings] value and then stops
+ * collecting, which is sufficient for verifying one update.
+ *
+ * The preference keys are repeated here only when a test needs to inspect or seed the raw storage
+ * format. Most tests deliberately use the repository's public methods, matching normal app usage.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DataStoreAlarmSettingsRepositoryTest {
 
+    private val enabledKey = booleanPreferencesKey("alarm_enabled")
+    private val hourKey = intPreferencesKey("alarm_hour")
+    private val minuteKey = intPreferencesKey("alarm_minute")
+    private val volumeKey = intPreferencesKey("alarm_volume")
+    private val enabledDaysKey = stringSetPreferencesKey("alarm_enabled_days")
+    private val progressiveVolumeKey = booleanPreferencesKey("alarm_progressive_volume")
+
     @Before
-    fun setup() {
+    fun setUpAndroidLog() {
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
     }
 
-    private fun createDataStore(scope: TestScope): DataStore<Preferences> {
-        // Each test gets an isolated file so persisted values cannot leak
-        // between repository instances.
-        val file = Files.createTempFile("alarm-settings-test", ".preferences_pb").toFile()
+    private fun TestScope.createDataStore(): DataStore<Preferences> {
+        // DataStore needs a physical file and a CoroutineScope. A unique temporary file gives each
+        // test production-like persistence, while backgroundScope lets runTest clean up its jobs.
+        val file = Files
+            .createTempFile("alarm-settings-test", ".preferences_pb")
+            .toFile()
 
         return PreferenceDataStoreFactory.create(
-            scope = scope.backgroundScope,
+            scope = backgroundScope,
             produceFile = { file }
         )
     }
 
+    /**
+     * Given a brand-new DataStore containing no keys, the repository should supply defaults for every
+     * [AlarmSettings] field. Comparing the complete object catches both wrong default values and a
+     * mapping that accidentally omits a field.
+     */
     @Test
-    fun defaultValuesAreReturnedWhenDataStoreIsEmpty() = runTest {
-        val dataStore = createDataStore(this)
+    fun `empty DataStore returns default settings`() = runTest {
+        val dataStore = createDataStore()
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
-        val settings = repository.settings.first()
-
-        assertFalse(settings.enabled)
-        assertEquals(7, settings.hour)
-        assertEquals(0, settings.minute)
-        assertEquals(70, settings.volume)
-        assertTrue(settings.enabledDays.isEmpty())
-        assertFalse(settings.progressiveVolume)
+        assertEquals(
+            AlarmSettings(
+                enabled = false,
+                hour = 7,
+                minute = 0,
+                volume = 70,
+                enabledDays = emptySet(),
+                progressiveVolume = false
+            ),
+            repository.settings.first()
+        )
     }
 
+    /**
+     * Given a repository backed by empty storage, calling `setEnabled(true)` should write the enabled
+     * preference. Reading the settings flow afterward and observing `true` proves the public setter and
+     * the preference-to-domain mapping agree.
+     */
     @Test
-    fun setEnabledUpdatesDataStore() = runTest {
-        val dataStore = createDataStore(this)
+    fun `setEnabled updates the enabled setting`() = runTest {
+        val dataStore = createDataStore()
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
         repository.setEnabled(true)
@@ -75,9 +101,14 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertTrue(settings.enabled)
     }
 
+    /**
+     * Alarm time is represented by two preference keys but exposed as one repository operation. After
+     * setting 09:30, separate assertions for hour and minute prove both parts were written and neither
+     * argument was lost or swapped.
+     */
     @Test
-    fun setTimeUpdatesDataStore() = runTest {
-        val dataStore = createDataStore(this)
+    fun `setTime updates the hour and minute`() = runTest {
+        val dataStore = createDataStore()
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
         repository.setTime(9, 30)
@@ -88,22 +119,34 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertEquals(30, settings.minute)
     }
 
+    /**
+     * DataStore cannot store [DayOfWeek] objects directly, so the repository serializes them as names.
+     * The raw assertion proves `MONDAY` and `FRIDAY` are stored in the portable string format; the
+     * domain assertion proves reading converts those strings back into the original enum set.
+     */
     @Test
-    fun setEnabledDaysUpdatesDataStore() = runTest {
-        val dataStore = createDataStore(this)
+    fun `setEnabledDays stores and reads enum names`() = runTest {
+        val dataStore = createDataStore()
         val repository = DataStoreAlarmSettingsRepository(dataStore)
-        val days = setOf(DayOfWeekUi.MO, DayOfWeekUi.FR)
+        val days = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)
 
         repository.setEnabledDays(days)
 
+        val storedDays = dataStore.data.first()[enabledDaysKey]
         val settings = repository.settings.first()
 
+        assertEquals(setOf("MONDAY", "FRIDAY"), storedDays)
         assertEquals(days, settings.enabledDays)
     }
 
+    /**
+     * Calling `setVolume(42)` should update the integer preference used by playback settings. Reading
+     * 42 from the mapped model proves the setter writes the correct key and the settings flow reads it.
+     * Range validation is tested elsewhere; this test is specifically about persistence.
+     */
     @Test
-    fun setVolumeUpdatesDataStore() = runTest {
-        val dataStore = createDataStore(this)
+    fun `setVolume updates the volume setting`() = runTest {
+        val dataStore = createDataStore()
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
         repository.setVolume(42)
@@ -113,9 +156,14 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertEquals(42, settings.volume)
     }
 
+    /**
+     * Calling `setProgressiveVolume(true)` should store the playback-ramp preference. Observing `true`
+     * in [AlarmSettings] proves this newer boolean field participates in both write and read mapping.
+     * Starting from empty storage also shows the update changes the default value of false.
+     */
     @Test
-    fun setProgressiveVolumeUpdatesDataStore() = runTest {
-        val dataStore = createDataStore(this)
+    fun `setProgressiveVolume updates the progressive volume setting`() = runTest {
+        val dataStore = createDataStore()
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
         repository.setProgressiveVolume(true)
@@ -125,26 +173,34 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertTrue(settings.progressiveVolume)
     }
 
+    /**
+     * Storage may contain obsolete or corrupted weekday strings after an app update or manual damage.
+     * The test writes two valid names and two invalid names directly. Reading only Monday and Friday
+     * proves malformed entries are ignored individually instead of crashing or discarding the entire set.
+     */
     @Test
-    fun invalidStoredDaysAreIgnored() = runTest {
-        val dataStore = createDataStore(this)
+    fun `invalid stored days are ignored`() = runTest {
+        val dataStore = createDataStore()
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
-        // Write raw preferences directly to simulate corrupted or obsolete
-        // persisted data that bypassed the repository API.
-        dataStore.edit { prefs ->
-            prefs[stringSetPreferencesKey("alarm_enabled_days")] =
-                setOf("MO", "INVALID_DAY", "FR")
+        dataStore.edit { preferences ->
+            preferences[enabledDaysKey] =
+                setOf("MONDAY", "MO", "INVALID_DAY", "FRIDAY")
         }
 
         val settings = repository.settings.first()
 
-        assertEquals(setOf(DayOfWeekUi.MO, DayOfWeekUi.FR), settings.enabledDays)
+        assertEquals(setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY), settings.enabledDays)
     }
 
+    /**
+     * Repository setters should edit only their own preference keys. The test writes time, then volume,
+     * then enabled state and finally reads all four values. If a later edit replaced the whole preference
+     * record, one of the earlier assertions would fail.
+     */
     @Test
-    fun updatingOneFieldKeepsPreviouslyStoredValues() = runTest {
-        val dataStore = createDataStore(this)
+    fun `updating one setting preserves the other settings`() = runTest {
+        val dataStore = createDataStore()
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
         repository.setTime(6, 45)
@@ -159,28 +215,36 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertEquals(25, settings.volume)
     }
 
+    /**
+     * This is the reverse-direction integration test: raw preferences are inserted without using any
+     * repository setter, then the settings flow must construct the exact domain object. It covers every
+     * key together, including weekday deserialization and progressive volume, to document the complete
+     * on-disk-to-model contract.
+     */
     @Test
-    fun repositoryMapsRawStoredValuesCorrectly() = runTest {
-        val dataStore = createDataStore(this)
+    fun `raw preferences are mapped to alarm settings`() = runTest {
+        val dataStore = createDataStore()
         val repository = DataStoreAlarmSettingsRepository(dataStore)
 
-        // This verifies the repository mapping layer, not the setter methods.
-        dataStore.edit { prefs ->
-            prefs[booleanPreferencesKey("alarm_enabled")] = true
-            prefs[intPreferencesKey("alarm_hour")] = 5
-            prefs[intPreferencesKey("alarm_minute")] = 20
-            prefs[intPreferencesKey("alarm_volume")] = 15
-            prefs[stringSetPreferencesKey("alarm_enabled_days")] = setOf("TU", "TH")
-            prefs[booleanPreferencesKey("alarm_progressive_volume")] = true
+        dataStore.edit { preferences ->
+            preferences[enabledKey] = true
+            preferences[hourKey] = 5
+            preferences[minuteKey] = 20
+            preferences[volumeKey] = 15
+            preferences[enabledDaysKey] = setOf("TUESDAY", "THURSDAY")
+            preferences[progressiveVolumeKey] = true
         }
 
-        val settings = repository.settings.first()
-
-        assertTrue(settings.enabled)
-        assertEquals(5, settings.hour)
-        assertEquals(20, settings.minute)
-        assertEquals(15, settings.volume)
-        assertEquals(setOf(DayOfWeekUi.TU, DayOfWeekUi.TH), settings.enabledDays)
-        assertTrue(settings.progressiveVolume)
+        assertEquals(
+            AlarmSettings(
+                enabled = true,
+                hour = 5,
+                minute = 20,
+                volume = 15,
+                enabledDays = setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY),
+                progressiveVolume = true
+            ),
+            repository.settings.first()
+        )
     }
 }

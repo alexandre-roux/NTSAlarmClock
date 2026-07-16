@@ -34,8 +34,8 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class RingingActivity : ComponentActivity() {
 
-    companion object {
-        private const val TAG = "RingingActivity"
+    private companion object {
+        const val TAG = "RingingActivity"
     }
 
     private val viewModel: RingScreenViewModel by viewModels()
@@ -47,34 +47,17 @@ class RingingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Log.d(
-            TAG,
-            "onCreate: intent=$intent, fallback=${intent?.getBooleanExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, false)}"
-        )
+        Log.d(TAG, "onCreate: intent=$intent")
 
-        // Keep media as the controlled stream while this activity is visible.
-        volumeControlStream = AudioManager.STREAM_MUSIC
-
-        // Allow the activity to appear on top of the lock screen.
-        setShowWhenLocked(true)
-
-        // Turn the screen on when the alarm triggers.
-        setTurnScreenOn(true)
-
-        // Keep the screen awake while the alarm is ringing.
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-        updateFallbackStateFromIntent(intent)
+        configureAlarmWindow()
+        updateFallbackState(intent)
 
         setContent {
             NTSAlarmClockTheme {
                 Surface {
                     RingScreen(
                         isFallbackAudioActive = isFallbackAudioActive,
-                        onDismiss = {
-                            Log.d(TAG, "onDismiss")
-                            finish()
-                        },
+                        onDismiss = ::dismissAlarm,
                         viewModel = viewModel
                     )
                 }
@@ -84,12 +67,9 @@ class RingingActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        Log.d(
-            TAG,
-            "onNewIntent: intent=$intent, fallback=${intent.getBooleanExtra(PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE, false)}"
-        )
+        Log.d(TAG, "onNewIntent: intent=$intent")
         setIntent(intent)
-        updateFallbackStateFromIntent(intent)
+        updateFallbackState(intent)
     }
 
     override fun onUserLeaveHint() {
@@ -118,70 +98,68 @@ class RingingActivity : ComponentActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         Log.d(TAG, "onKeyDown: keyCode=$keyCode")
 
-        return when (keyCode) {
-            KeyEvent.KEYCODE_VOLUME_UP -> {
-                sendVolumeAction(PlaybackService.ACTION_VOLUME_UP)
-                true
-            }
-
-            KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                sendVolumeAction(PlaybackService.ACTION_VOLUME_DOWN)
-                true
-            }
-
-            else -> super.onKeyDown(keyCode, event)
+        val volumeAction = when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP -> PlaybackService.ACTION_VOLUME_UP
+            KeyEvent.KEYCODE_VOLUME_DOWN -> PlaybackService.ACTION_VOLUME_DOWN
+            else -> return super.onKeyDown(keyCode, event)
         }
+
+        sendVolumeAction(volumeAction)
+        return true
     }
 
-    /**
-     * Updates the UI state from the activity intent.
-     */
-    private fun updateFallbackStateFromIntent(intent: Intent?) {
+    private fun configureAlarmWindow() {
+        volumeControlStream = AudioManager.STREAM_MUSIC
+        setShowWhenLocked(true)
+        setTurnScreenOn(true)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    private fun updateFallbackState(intent: Intent?) {
         isFallbackAudioActive = intent?.getBooleanExtra(
             PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE,
             false
         ) ?: false
 
-        Log.d(TAG, "updateFallbackStateFromIntent: isFallbackAudioActive=$isFallbackAudioActive")
+        Log.d(TAG, "updateFallbackState: isFallbackAudioActive=$isFallbackAudioActive")
     }
 
-    /**
-     * Brings the ringing activity back to the foreground when the system
-     * tries to send it behind the launcher during unlock / home-like flows.
-     */
+    private fun dismissAlarm() {
+        Log.d(TAG, "dismissAlarm")
+        finish()
+    }
+
+    /** Schedules at most one attempt to return the ringing screen to the foreground. */
     private fun scheduleBringToFront() {
-        if (relaunchScheduled) {
-            return
-        }
+        if (relaunchScheduled) return
 
         relaunchScheduled = true
 
         mainHandler.post {
             relaunchScheduled = false
-
-            if (isFinishing || isDestroyed) {
-                return@post
-            }
-
-            Log.d(TAG, "scheduleBringToFront: restarting RingingActivity")
-
-            val intent = Intent(this, RingingActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra(
-                    PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE,
-                    isFallbackAudioActive
-                )
-            }
-
-            startActivity(intent)
+            bringToFrontIfPossible()
         }
     }
 
-    /**
-     * Sends a volume adjustment command to the playback service.
-     */
+    private fun bringToFrontIfPossible() {
+        if (isFinishing || isDestroyed) return
+
+        Log.d(TAG, "bringToFrontIfPossible: restarting RingingActivity")
+        startActivity(createRelaunchIntent())
+    }
+
+    private fun createRelaunchIntent(): Intent {
+        return Intent(this, RingingActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra(
+                PlaybackService.EXTRA_FALLBACK_AUDIO_ACTIVE,
+                isFallbackAudioActive
+            )
+        }
+    }
+
     private fun sendVolumeAction(action: String) {
         Log.d(TAG, "sendVolumeAction: action=$action")
         val intent = Intent(this, PlaybackService::class.java).apply {
