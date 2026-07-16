@@ -24,6 +24,10 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ManifestConfigurationInstrumentedTest {
 
+    /**
+     * Verifies the installed manifest keeps playback private to the app and, where supported,
+     * identifies it as a media-playback foreground service.
+     */
     @Test
     fun playbackService_isPrivateMediaPlaybackForegroundService() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -40,6 +44,10 @@ class ManifestConfigurationInstrumentedTest {
         }
     }
 
+    /**
+     * Verifies the merged manifest requests every permission needed to restore alarms, post
+     * notifications, schedule exact alarms, and run foreground playback.
+     */
     @Test
     fun manifestRequestsAlarmNotificationAndForegroundServicePermissions() {
         val context = ApplicationProvider.getApplicationContext<Context>()

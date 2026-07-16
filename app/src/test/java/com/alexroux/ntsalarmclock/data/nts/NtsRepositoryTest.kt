@@ -13,6 +13,7 @@ class NtsRepositoryTest {
     private val api = mockk<NtsApi>()
     private val repository = NtsRepository(api)
 
+    /** A populated live schedule produces a successful result containing the current show title. */
     @Test
     fun `getCurrentShow returns the current broadcast title`() = runTest {
         coEvery { api.getLiveSchedule() } returns NtsLiveResponse(
@@ -30,6 +31,7 @@ class NtsRepositoryTest {
         assertEquals("Breakfast Show", result.getOrNull())
     }
 
+    /** An empty schedule is a successful response with no current show, rather than an error. */
     @Test
     fun `getCurrentShow returns null when the schedule has no channels`() = runTest {
         coEvery { api.getLiveSchedule() } returns NtsLiveResponse(channels = emptyList())
@@ -40,6 +42,7 @@ class NtsRepositoryTest {
         assertNull(result.getOrNull())
     }
 
+    /** API exceptions are captured as failures while preserving the original exception instance. */
     @Test
     fun `getCurrentShow preserves a network failure`() = runTest {
         val failure = IllegalStateException("network unavailable")

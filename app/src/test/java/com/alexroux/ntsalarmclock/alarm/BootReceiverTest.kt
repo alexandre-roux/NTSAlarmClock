@@ -51,6 +51,7 @@ class BootReceiverTest {
         unmockkAll()
     }
 
+    /** Boot should restore an enabled alarm's persisted time and repeat days, then finish async work. */
     @Test
     fun bootCompleted_reschedulesEnabledAlarm() = runTest {
         givenSettings(
@@ -77,6 +78,7 @@ class BootReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
+    /** A disabled persisted alarm should cancel any stale system alarm instead of being rescheduled. */
     @Test
     fun bootCompleted_cancelsDisabledAlarmState() = runTest {
         givenSettings(
@@ -97,6 +99,7 @@ class BootReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
+    /** Repository failures must not schedule or cancel an alarm, but must still finish the broadcast. */
     @Test
     fun bootCompleted_finishesPendingResultWhenRepositoryFails() = runTest {
         every { repository.settings } returns flow {
@@ -112,6 +115,7 @@ class BootReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
+    /** Broadcasts other than boot completion should be ignored without starting asynchronous cleanup. */
     @Test
     fun nonBootBroadcast_isIgnored() = runTest {
         val timeChangedIntent = mockk<Intent> {

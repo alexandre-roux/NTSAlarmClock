@@ -24,6 +24,10 @@ class RingScreenContentTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    /**
+     * Verifies the complete ringing state, including decoded show text, the fallback-audio
+     * warning, volume controls, and the stop action.
+     */
     @Test
     fun ringScreen_showsRingingMessageCurrentShowVolumeAndStopButton() {
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -55,6 +59,10 @@ class RingScreenContentTest {
         composeRule.onNodeWithText("STOP").assertIsDisplayed()
     }
 
+    /**
+     * Verifies that tapping the stop button delegates alarm shutdown to the callback supplied
+     * by the owning screen or ViewModel.
+     */
     @Test
     fun stopButton_invokesStopCallback() {
         var stopClicked = false
@@ -82,6 +90,10 @@ class RingScreenContentTest {
         assertTrue(stopClicked)
     }
 
+    /**
+     * Verifies the normal online state omits current-show and fallback-audio messages when the
+     * corresponding data and fallback flag are absent.
+     */
     @Test
     fun ringScreen_hidesCurrentShowAndFallbackMessageWhenUnavailable() {
         composeRule.activityRule.scenario.onActivity { activity ->

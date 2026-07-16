@@ -20,6 +20,7 @@ class ResourceAlarmScheduleTextFormatterTest {
         formatter = ResourceAlarmScheduleTextFormatter(resources)
     }
 
+    /** A disabled alarm uses the dedicated disabled string instead of calculating a duration. */
     @Test
     fun disabledAlarm_usesDisabledResource() {
         assertEquals(
@@ -28,6 +29,7 @@ class ResourceAlarmScheduleTextFormatterTest {
         )
     }
 
+    /** A multi-unit duration uses plural forms plus localized list and final separators. */
     @Test
     fun duration_usesPluralResourcesAndLocalizedSeparators() {
         val text = formatter.format(
@@ -40,6 +42,7 @@ class ResourceAlarmScheduleTextFormatterTest {
         assertEquals("This alarm is scheduled in 2 days, 1 hour and 30 minutes", text)
     }
 
+    /** Quantities of one select the singular hour and minute resources. */
     @Test
     fun duration_usesSingularQuantities() {
         val text = formatter.format(
@@ -52,6 +55,7 @@ class ResourceAlarmScheduleTextFormatterTest {
         assertEquals("This alarm is scheduled in 1 hour and 1 minute", text)
     }
 
+    /** Zero-value units are omitted so an exact two-hour delay contains only hours. */
     @Test
     fun duration_withOnlyHours_omitsEmptyUnits() {
         val text = formatter.format(
@@ -64,6 +68,7 @@ class ResourceAlarmScheduleTextFormatterTest {
         assertEquals("This alarm is scheduled in 2 hours", text)
     }
 
+    /** A next-day alarm just after midnight is formatted from the true 20-minute difference. */
     @Test
     fun duration_acrossMidnight_usesActualMinuteDifference() {
         val text = formatter.format(
@@ -76,6 +81,7 @@ class ResourceAlarmScheduleTextFormatterTest {
         assertEquals("This alarm is scheduled in 20 minutes", text)
     }
 
+    /** Matching clock times roll to the next occurrence and use the singular one-day resource. */
     @Test
     fun duration_exactlyOneDay_usesSingularDay() {
         val text = formatter.format(
@@ -88,6 +94,7 @@ class ResourceAlarmScheduleTextFormatterTest {
         assertEquals("This alarm is scheduled in 1 day", text)
     }
 
+    /** A positive delay shorter than 60 seconds uses the dedicated less-than-a-minute text. */
     @Test
     fun duration_lessThanMinute_usesDedicatedResource() {
         val text = formatter.format(

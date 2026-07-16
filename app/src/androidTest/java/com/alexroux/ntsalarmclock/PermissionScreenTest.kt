@@ -25,10 +25,15 @@ class PermissionScreenTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    /**
+     * Verifies the initial notification-permission state: the rationale is visible and
+     * the allow button delegates the permission request to its callback.
+     */
     @Test
     fun permissionScreen_showsNotificationPermissionCopyAndAllowAction() {
         var allowClicked = false
 
+        // deniedCount = 0 represents the first permission request, before any rejection.
         // setContent must run on the Activity thread; waitForIdle below lets
         // composition settle before querying the semantics tree.
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -44,14 +49,22 @@ class PermissionScreenTest {
         }
         composeRule.waitForIdle()
 
+        // Check the user sees both the reason for the request and the action that can grant it.
         composeRule.onNodeWithText("NOTIFICATIONS PERMISSION REQUIRED").assertIsDisplayed()
         composeRule.onNodeWithText("This app needs notification permission to be able to run the alarm")
             .assertIsDisplayed()
+
+        // Exercise the primary action exactly as a user would from the permission screen.
         composeRule.onNodeWithText("ALLOW NOTIFICATIONS").performClick()
 
+        // The screen does not request Android permissions itself; it must notify its caller.
         assertTrue(allowClicked)
     }
 
+    /**
+     * Verifies that repeated notification-permission denials replace the direct allow action
+     * with an app-settings action, where the user can enable the permission manually.
+     */
     @Test
     fun permissionScreen_showsSettingsActionAfterRepeatedDenials() {
         var settingsClicked = false
@@ -71,18 +84,27 @@ class PermissionScreenTest {
         }
         composeRule.waitForIdle()
 
+        // Only the settings route should be available after the repeated-denial threshold.
         assertTrue(
             composeRule.onAllNodesWithText("ALLOW NOTIFICATIONS").fetchSemanticsNodes().isEmpty()
         )
+
+        // The remaining action should ask the Activity to open the application's settings.
         composeRule.onNodeWithText("OPEN SETTINGS").performClick()
 
+        // Confirm the settings button delegates navigation to the owning Activity.
         assertTrue(settingsClicked)
     }
 
+    /**
+     * Verifies that one denial is still treated as retryable, keeping the runtime-permission
+     * action available instead of directing the user to app settings too early.
+     */
     @Test
     fun permissionScreen_keepsAllowActionAfterSingleDenial() {
         var allowClicked = false
 
+        // deniedCount = 1 models the first denial, when requesting the permission again is valid.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.setContent {
                 NTSAlarmClockTheme {
@@ -99,11 +121,18 @@ class PermissionScreenTest {
         // After one denial, the app still presents the direct permission request
         // instead of jumping to system settings.
         assertTrue(composeRule.onAllNodesWithText("OPEN SETTINGS").fetchSemanticsNodes().isEmpty())
+
+        // Retry the permission request through the action that remains visible.
         composeRule.onNodeWithText("ALLOW NOTIFICATIONS").performClick()
 
+        // Confirm that the retry action reaches the permission-request callback.
         assertTrue(allowClicked)
     }
 
+    /**
+     * Verifies the overlay-permission rationale and confirms that its allow button delegates
+     * launching the system overlay settings to the caller.
+     */
     @Test
     fun overlayPermissionScreen_showsOverlayCopyAndAllowAction() {
         var allowOverlayClicked = false
@@ -121,11 +150,15 @@ class PermissionScreenTest {
         }
         composeRule.waitForIdle()
 
+        // Validate the overlay-specific explanation before exercising its primary action.
         composeRule.onNodeWithText("OVERLAY PERMISSION REQUIRED").assertIsDisplayed()
         composeRule.onNodeWithText("This app needs the overlay permission to show the alarm on the screen")
             .assertIsDisplayed()
+
+        // Simulate choosing the action that opens Android's overlay-permission settings.
         composeRule.onNodeWithText("ALLOW OVERLAY").performClick()
 
+        // A callback invocation proves the button is wired to the external settings flow.
         assertTrue(allowOverlayClicked)
     }
 }

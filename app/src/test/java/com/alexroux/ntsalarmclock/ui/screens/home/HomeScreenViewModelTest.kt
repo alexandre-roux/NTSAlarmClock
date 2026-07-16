@@ -72,6 +72,7 @@ class HomeScreenViewModelTest {
         Dispatchers.resetMain()
     }
 
+    /** A new ViewModel stays in Loading until its lazy state flow starts collecting repository data. */
     @Test
     fun initialState_isLoading() = runTest {
         val viewModel = createViewModel()
@@ -79,6 +80,7 @@ class HomeScreenViewModelTest {
         assertTrue(viewModel.uiState.value is HomeScreenUiState.Loading)
     }
 
+    /** Collecting the state maps every repository setting and the formatted schedule into Success. */
     @Test
     fun state_becomesSuccess_afterRepositoryEmits() = runTest {
         val viewModel = createViewModel()
@@ -100,6 +102,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** A time edit is persisted once with the exact hour and minute selected by the user. */
     @Test
     fun onTimeChange_updatesRepository() = runTest {
         val viewModel = createViewModel()
@@ -118,6 +121,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Toggling an initialized, disabled alarm persists the inverse enabled state. */
     @Test
     fun onEnabledChange_togglesEnabledState() = runTest {
         val viewModel = createViewModel()
@@ -133,6 +137,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Enable toggles are ignored while settings are still loading because no current value exists. */
     @Test
     fun onEnabledChange_doesNothing_whileLoading() = runTest {
         val viewModel = createViewModel()
@@ -143,6 +148,7 @@ class HomeScreenViewModelTest {
         coVerify(exactly = 0) { repository.setEnabled(any()) }
     }
 
+    /** Toggling an unselected weekday adds it to the persisted enabled-day set. */
     @Test
     fun onToggleDay_addsDay_ifNotPresent() = runTest {
         val viewModel = createViewModel()
@@ -158,6 +164,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Toggling an already selected weekday removes it from the persisted enabled-day set. */
     @Test
     fun onToggleDay_removesDay_ifPresent() = runTest {
         settingsFlow.value = settingsFlow.value.copy(enabledDays = setOf(DayOfWeek.MONDAY))
@@ -175,6 +182,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Direct volume edits are constrained to the supported 0..100 range before persistence. */
     @Test
     fun onVolumeChange_clampsVolume() = runTest {
         val viewModel = createViewModel()
@@ -197,6 +205,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** A hardware-key delta is applied relative to the volume in the current UI state. */
     @Test
     fun onHardwareVolumeKey_updatesVolumeRelativeToCurrentState() = runTest {
         settingsFlow.value = settingsFlow.value.copy(volume = 50)
@@ -214,6 +223,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Hardware-key adjustments cannot persist a volume above 100 or below zero. */
     @Test
     fun onHardwareVolumeKey_clampsVolumeToBounds() = runTest {
         settingsFlow.value = settingsFlow.value.copy(volume = 98)
@@ -240,6 +250,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Changing progressive-volume preference forwards the selected value to the repository once. */
     @Test
     fun onProgressiveVolumeEnabledChange_updatesRepository() = runTest {
         val viewModel = createViewModel()
@@ -255,6 +266,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** An initially enabled configuration schedules its exact time and recurring weekdays. */
     @Test
     fun enabledScheduleConfig_schedulesNextAlarm() = runTest {
         settingsFlow.value = settingsFlow.value.copy(
@@ -280,6 +292,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** An initially disabled configuration cancels any alarm that may already be scheduled. */
     @Test
     fun disabledScheduleConfig_cancelsAlarm() = runTest {
         val viewModel = createViewModel()
@@ -291,6 +304,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** When repository state changes from disabled to enabled, the current configuration is scheduled. */
     @Test
     fun changingEnabledState_falseToTrue_schedulesNextAlarm() = runTest {
         val viewModel = createViewModel()
@@ -313,6 +327,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** When repository state changes from enabled to disabled, the existing alarm is cancelled. */
     @Test
     fun changingEnabledState_trueToFalse_cancelsAlarm() = runTest {
         settingsFlow.value = settingsFlow.value.copy(enabled = true)
@@ -330,6 +345,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Changing only playback volume leaves the already valid alarm schedule untouched. */
     @Test
     fun changingVolume_doesNotRescheduleAlarm() = runTest {
         settingsFlow.value = settingsFlow.value.copy(enabled = true)
@@ -348,6 +364,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Changing only progressive-volume behavior does not trigger another scheduler operation. */
     @Test
     fun changingProgressiveVolume_doesNotRescheduleAlarm() = runTest {
         settingsFlow.value = settingsFlow.value.copy(enabled = true)
@@ -365,6 +382,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** An update with unchanged scheduling fields must not schedule the same alarm again. */
     @Test
     fun identicalScheduleConfig_doesNotRescheduleAlarmAgain() = runTest {
         settingsFlow.value = settingsFlow.value.copy(enabled = true)
@@ -382,6 +400,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Changing the time of an enabled alarm replaces its schedule with the new hour and minute. */
     @Test
     fun changingTime_reschedulesAlarm_whenEnabled() = runTest {
         settingsFlow.value = settingsFlow.value.copy(enabled = true)
@@ -406,6 +425,7 @@ class HomeScreenViewModelTest {
         job.cancel()
     }
 
+    /** Changing weekdays on an enabled alarm reschedules it with the updated recurrence set. */
     @Test
     fun changingEnabledDays_reschedulesAlarm_whenEnabled() = runTest {
         settingsFlow.value = settingsFlow.value.copy(enabled = true)

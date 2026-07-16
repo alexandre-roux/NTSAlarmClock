@@ -84,6 +84,10 @@ class RingScreenViewModelTest {
         unmockkAll()
     }
 
+    /**
+     * Verifies that stopping an alarm tells the playback service to stop and removes the
+     * ongoing alarm notification so no ringing UI remains active.
+     */
     @Test
     fun stopAlarm_stopsPlaybackServiceAndCancelsNotification() = runTest {
         // Main must be replaced before creating the ViewModel because init
@@ -106,6 +110,10 @@ class RingScreenViewModelTest {
         }
     }
 
+    /**
+     * Verifies that live volume changes are capped at the supported maximum before the
+     * ViewModel updates its state and forwards the value to the playback service.
+     */
     @Test
     fun onVolumeChange_clampsAndSendsVolumeToPlaybackService() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -123,6 +131,10 @@ class RingScreenViewModelTest {
         }
     }
 
+    /**
+     * Verifies that finishing a volume adjustment clamps values below zero and persists the
+     * normalized value in the alarm settings repository.
+     */
     @Test
     fun onVolumeChangeFinished_clampsAndPersistsVolume() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -140,6 +152,10 @@ class RingScreenViewModelTest {
         }
     }
 
+    /**
+     * Verifies that volume changes emitted by the settings repository are collected into the
+     * ViewModel's observable volume state.
+     */
     @Test
     fun repositoryVolume_updatesCurrentVolume() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -158,6 +174,10 @@ class RingScreenViewModelTest {
         }
     }
 
+    /**
+     * Verifies that the currently airing NTS show is fetched during ViewModel initialization
+     * and exposed to the ringing screen.
+     */
     @Test
     fun currentShow_isLoadedOnStart() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))

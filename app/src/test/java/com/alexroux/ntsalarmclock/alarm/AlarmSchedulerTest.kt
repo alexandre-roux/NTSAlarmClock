@@ -57,6 +57,7 @@ class AlarmSchedulerTest {
         unmockkAll()
     }
 
+    /** Scheduling should cancel the previous PendingIntent before registering its replacement. */
     @Test
     fun scheduleNextAlarm_replacesExistingAlarmBeforeScheduling() {
         givenNextTrigger(TRIGGER_AT_MILLIS)
@@ -73,6 +74,7 @@ class AlarmSchedulerTest {
         }
     }
 
+    /** If AlarmClock registration is denied, the scheduler should retain precision with the exact fallback. */
     @Test
     fun scheduleNextAlarm_usesExactFallback_whenAlarmClockThrowsSecurityException() {
         givenNextTrigger(TRIGGER_AT_MILLIS)
@@ -107,6 +109,7 @@ class AlarmSchedulerTest {
         }
     }
 
+    /** If both preferred exact APIs are denied, an inexact alarm should preserve eventual delivery. */
     @Test
     fun scheduleNextAlarm_usesInexactFallback_whenExactFallbackThrowsSecurityException() {
         givenNextTrigger(TRIGGER_AT_MILLIS)
@@ -137,6 +140,7 @@ class AlarmSchedulerTest {
         }
     }
 
+    /** A missing calculated trigger should prevent any new platform alarm from being registered. */
     @Test
     fun scheduleNextAlarm_doesNothingIfTriggerIsNull() {
         givenNextTrigger(null)
@@ -155,6 +159,7 @@ class AlarmSchedulerTest {
         }
     }
 
+    /** Explicit cancellation should remove both the AlarmManager entry and its PendingIntent token. */
     @Test
     fun cancelAlarm_cancelsAlarmAndPendingIntent() {
         scheduler.cancelAlarm()

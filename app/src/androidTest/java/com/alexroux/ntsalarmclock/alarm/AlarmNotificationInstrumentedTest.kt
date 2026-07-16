@@ -24,6 +24,10 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AlarmNotificationInstrumentedTest {
 
+    /**
+     * Verifies Android persists the alarm channel with high importance and public visibility,
+     * while leaving sound and vibration to the playback service rather than the channel.
+     */
     @Test
     fun createNotificationChannel_configuresHighImportancePublicSilentChannel() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -43,6 +47,10 @@ class AlarmNotificationInstrumentedTest {
         assertNull(channel.sound)
     }
 
+    /**
+     * Verifies a ringing notification has alarm-specific presentation, launches full-screen UI,
+     * exposes a stop action, and remains ongoing until the alarm is explicitly stopped.
+     */
     @Test
     fun buildAlarmNotification_usesAlarmCategoryFullScreenIntentAndStopAction() {
         val context = ApplicationProvider.getApplicationContext<Context>()

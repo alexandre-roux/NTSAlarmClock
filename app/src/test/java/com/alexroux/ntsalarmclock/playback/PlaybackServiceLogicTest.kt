@@ -11,21 +11,25 @@ import org.junit.Test
  */
 class PlaybackServiceLogicTest {
 
+    /** A valid percentage is converted to the player's normalized 0f..1f scale. */
     @Test
     fun toPlayerVolume_convertsPercentToFloat() {
         assertEquals(0.5f, PlaybackServiceLogic.toPlayerVolume(50))
     }
 
+    /** Percentages below zero are clamped so the player never receives a negative volume. */
     @Test
     fun toPlayerVolume_clampsLowValue() {
         assertEquals(0f, PlaybackServiceLogic.toPlayerVolume(-10))
     }
 
+    /** Percentages above 100 are capped at the player's maximum volume. */
     @Test
     fun toPlayerVolume_clampsHighValue() {
         assertEquals(1f, PlaybackServiceLogic.toPlayerVolume(150))
     }
 
+    /** Persisted volume values are constrained to 0..100 while valid values remain unchanged. */
     @Test
     fun coerceVolumePercent_clampsToPersistedRange() {
         assertEquals(0, PlaybackServiceLogic.coerceVolumePercent(-1))
@@ -33,6 +37,7 @@ class PlaybackServiceLogicTest {
         assertEquals(100, PlaybackServiceLogic.coerceVolumePercent(101))
     }
 
+    /** Progressive playback starts muted so later steps can ramp up to the requested volume. */
     @Test
     fun initialPlayerVolume_returnsZero_whenProgressiveVolumeEnabled() {
         val initialVolume = PlaybackServiceLogic.initialPlayerVolume(
@@ -43,6 +48,7 @@ class PlaybackServiceLogicTest {
         assertEquals(0f, initialVolume)
     }
 
+    /** Without progressive playback, the player starts immediately at the requested volume. */
     @Test
     fun initialPlayerVolume_returnsTargetVolume_whenProgressiveVolumeDisabled() {
         val initialVolume = PlaybackServiceLogic.initialPlayerVolume(
@@ -53,6 +59,7 @@ class PlaybackServiceLogicTest {
         assertEquals(0.8f, initialVolume)
     }
 
+    /** An invalid target is still capped when progressive playback is disabled. */
     @Test
     fun initialPlayerVolume_clampsTargetVolume_whenProgressiveVolumeDisabled() {
         val initialVolume = PlaybackServiceLogic.initialPlayerVolume(
@@ -65,6 +72,7 @@ class PlaybackServiceLogicTest {
         assertEquals(1f, initialVolume)
     }
 
+    /** A regular progressive step advances by one fraction of the target volume. */
     @Test
     fun nextProgressiveVolumeStep_increasesVolumeWithoutExceedingTarget() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -76,6 +84,7 @@ class PlaybackServiceLogicTest {
         assertEquals(0.25f, nextVolume)
     }
 
+    /** A step that would overshoot is capped exactly at the target volume. */
     @Test
     fun nextProgressiveVolumeStep_stopsAtTargetVolume() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -87,6 +96,7 @@ class PlaybackServiceLogicTest {
         assertEquals(0.5f, nextVolume)
     }
 
+    /** A zero step count cannot define a ramp, so playback falls back to the target volume. */
     @Test
     fun nextProgressiveVolumeStep_returnsTarget_whenStepCountIsZero() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -98,6 +108,7 @@ class PlaybackServiceLogicTest {
         assertEquals(0.8f, nextVolume)
     }
 
+    /** A negative step count is invalid and likewise falls back to the target volume. */
     @Test
     fun nextProgressiveVolumeStep_returnsTarget_whenStepCountIsNegative() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -109,6 +120,7 @@ class PlaybackServiceLogicTest {
         assertEquals(0.8f, nextVolume)
     }
 
+    /** A zero target remains muted instead of being increased by the ramp calculation. */
     @Test
     fun nextProgressiveVolumeStep_keepsZeroTargetMuted() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -120,6 +132,7 @@ class PlaybackServiceLogicTest {
         assertEquals(0f, nextVolume)
     }
 
+    /** A manual adjustment within range applies the requested delta unchanged. */
     @Test
     fun applyManualVolumeDelta_changesVolumeWithinBounds() {
         assertEquals(
@@ -131,6 +144,7 @@ class PlaybackServiceLogicTest {
         )
     }
 
+    /** Manual adjustments crossing either boundary are clamped to the player's valid range. */
     @Test
     fun applyManualVolumeDelta_clampsVolumeToBounds() {
         assertEquals(
@@ -149,6 +163,7 @@ class PlaybackServiceLogicTest {
         )
     }
 
+    /** Already-invalid current volumes are normalized even when the delta moves farther out of range. */
     @Test
     fun applyManualVolumeDelta_clampsAlreadyOutOfRangeCurrentVolume() {
         assertEquals(

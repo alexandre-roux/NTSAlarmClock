@@ -49,6 +49,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         )
     }
 
+    /** With no stored preferences, the repository emits the complete application defaults. */
     @Test
     fun `empty DataStore returns default settings`() = runTest {
         val dataStore = createDataStore()
@@ -67,6 +68,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         )
     }
 
+    /** Enabling the alarm is persisted and reflected by the repository's settings flow. */
     @Test
     fun `setEnabled updates the enabled setting`() = runTest {
         val dataStore = createDataStore()
@@ -79,6 +81,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertTrue(settings.enabled)
     }
 
+    /** Updating the alarm time persists both hour and minute as one logical setting change. */
     @Test
     fun `setTime updates the hour and minute`() = runTest {
         val dataStore = createDataStore()
@@ -92,6 +95,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertEquals(30, settings.minute)
     }
 
+    /** Enabled days are stored as enum names and reconstructed as the same enum set. */
     @Test
     fun `setEnabledDays stores and reads enum names`() = runTest {
         val dataStore = createDataStore()
@@ -107,6 +111,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertEquals(days, settings.enabledDays)
     }
 
+    /** Changing volume is persisted and exposed through the mapped settings flow. */
     @Test
     fun `setVolume updates the volume setting`() = runTest {
         val dataStore = createDataStore()
@@ -119,6 +124,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertEquals(42, settings.volume)
     }
 
+    /** Enabling progressive volume is persisted and returned in the repository model. */
     @Test
     fun `setProgressiveVolume updates the progressive volume setting`() = runTest {
         val dataStore = createDataStore()
@@ -131,6 +137,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertTrue(settings.progressiveVolume)
     }
 
+    /** Unknown stored day names are skipped while valid names still survive deserialization. */
     @Test
     fun `invalid stored days are ignored`() = runTest {
         val dataStore = createDataStore()
@@ -146,6 +153,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertEquals(setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY), settings.enabledDays)
     }
 
+    /** Each targeted update leaves values written by earlier repository operations intact. */
     @Test
     fun `updating one setting preserves the other settings`() = runTest {
         val dataStore = createDataStore()
@@ -163,6 +171,7 @@ class DataStoreAlarmSettingsRepositoryTest {
         assertEquals(25, settings.volume)
     }
 
+    /** A fully populated preference record maps every raw key to its domain-model field. */
     @Test
     fun `raw preferences are mapped to alarm settings`() = runTest {
         val dataStore = createDataStore()

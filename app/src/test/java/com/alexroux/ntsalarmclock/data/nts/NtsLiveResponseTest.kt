@@ -6,6 +6,7 @@ import org.junit.Test
 
 class NtsLiveResponseTest {
 
+    /** Gson maps the API's snake_case keys to the readable channel and current-show properties. */
     @Test
     fun `API fields map to readable model properties`() {
         val json = """

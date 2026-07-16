@@ -11,6 +11,10 @@ import org.junit.Test
  */
 class PermissionViewModelTest {
 
+    /**
+     * Verifies that missing notification permission takes priority over the later overlay step
+     * when neither permission has been granted.
+     */
     @Test
     fun notificationsMissing_requestsNotificationPermission() {
         val viewModel = PermissionViewModel()
@@ -28,6 +32,10 @@ class PermissionViewModelTest {
         )
     }
 
+    /**
+     * Verifies that each rejected notification request is counted so the UI can eventually
+     * replace the retry action with a route to application settings.
+     */
     @Test
     fun notificationDenials_incrementDeniedCount() {
         val viewModel = PermissionViewModel()
@@ -47,6 +55,10 @@ class PermissionViewModelTest {
         )
     }
 
+    /**
+     * Verifies that granting notification permission advances the flow to the required overlay
+     * permission instead of completing setup immediately.
+     */
     @Test
     fun notificationGranted_thenOverlayMissing_requestsOverlayPermission() {
         val viewModel = PermissionViewModel()
@@ -62,6 +74,10 @@ class PermissionViewModelTest {
         assertEquals(PermissionUiState.RequestOverlay, viewModel.uiState.value)
     }
 
+    /**
+     * Verifies that the flow reports completion when both Android permissions are already
+     * available, allowing the Activity to continue into the app.
+     */
     @Test
     fun allPermissionsGranted_completesFlow() {
         val viewModel = PermissionViewModel()
@@ -75,6 +91,10 @@ class PermissionViewModelTest {
         assertEquals(PermissionUiState.Completed, viewModel.uiState.value)
     }
 
+    /**
+     * Verifies the intentional one-time overlay prompt: after returning from system settings,
+     * the user may continue even when overlay permission was not granted.
+     */
     @Test
     fun returningFromOverlaySettings_completesEvenIfOverlayStillDenied() {
         val viewModel = PermissionViewModel()

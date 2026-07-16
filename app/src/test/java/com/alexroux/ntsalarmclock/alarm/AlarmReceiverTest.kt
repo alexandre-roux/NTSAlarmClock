@@ -66,6 +66,7 @@ class AlarmReceiverTest {
         unmockkStatic(Log::class)
     }
 
+    /** An enabled recurring alarm should schedule its next occurrence, start playback, and clean up. */
     @Test
     fun recurringAlarm_reschedulesNextAlarm() = runTest {
         givenSettings(
@@ -94,6 +95,7 @@ class AlarmReceiverTest {
         assertTrue(playbackStarted)
     }
 
+    /** A one-shot alarm should disable itself after firing rather than schedule another occurrence. */
     @Test
     fun oneShotAlarm_disablesAlarmAfterItFires() = runTest {
         givenSettings(alarmSettings(enabledDays = emptySet()))
@@ -107,6 +109,7 @@ class AlarmReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
+    /** A stale broadcast for a disabled alarm should make no scheduling or persistence changes. */
     @Test
     fun disabledAlarm_doesNotReschedule() = runTest {
         givenSettings(
@@ -125,6 +128,7 @@ class AlarmReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
+    /** Without notification permission, a one-shot alarm should skip playback but still disable itself. */
     @Test
     fun notificationsDenied_skipsPlaybackAndDisablesOneShotAlarm() = runTest {
         givenSettings(alarmSettings(enabledDays = emptySet()))
@@ -144,6 +148,7 @@ class AlarmReceiverTest {
         assertFalse(playbackStarted)
     }
 
+    /** A recurring alarm should still be rescheduled when notification permission prevents playback. */
     @Test
     fun notificationsDenied_skipsPlaybackButReschedulesRecurringAlarm() = runTest {
         givenSettings(
@@ -177,6 +182,7 @@ class AlarmReceiverTest {
         assertFalse(playbackStarted)
     }
 
+    /** A settings read failure should skip alarm work and playback while still releasing receiver resources. */
     @Test
     fun repositoryFailure_releasesWakeLockAndFinishesPendingResult() = runTest {
         every { repository.settings } returns flow {
