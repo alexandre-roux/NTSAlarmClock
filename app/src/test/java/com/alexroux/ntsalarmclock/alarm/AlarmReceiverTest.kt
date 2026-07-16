@@ -31,7 +31,19 @@ import org.junit.Before
 import org.junit.Test
 import java.time.DayOfWeek
 
-/** Tests alarm broadcasts without starting Android services or scheduling real alarms. */
+/**
+ * Tests alarm broadcasts without starting Android services or scheduling real alarms.
+ *
+ * [AlarmReceiver.onReceive] must return quickly, so production calls `goAsync()`, acquires a partial
+ * wake lock, and launches coroutine work. The anonymous receiver built by [testReceiver] replaces all
+ * of those Android boundaries with mocks and the `runTest` scope. `advanceUntilIdle()` then runs the
+ * whole asynchronous path deterministically.
+ *
+ * The `playbackStarted` Boolean is a lightweight substitute for launching `PlaybackService`. Mock
+ * verifications separately cover persistent state and next-alarm scheduling. Cleanup assertions matter
+ * as much as business behavior: a leaked wake lock wastes battery, and an unfinished pending result
+ * leaves Android believing the broadcast is still active.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AlarmReceiverTest {
 
@@ -66,7 +78,12 @@ class AlarmReceiverTest {
         unmockkStatic(Log::class)
     }
 
-    /** An enabled recurring alarm should schedule its next occurrence, start playback, and clean up. */
+    /**
+     * Given an enabled 07:30 alarm with Monday and Friday repeat days, firing the broadcast should start
+     * playback now and register the following occurrence with the same schedule. A recurring alarm stays
+     * enabled, so `repository.setEnabled` must not be called. [verifyReceiverCleanup] proves the wake lock
+     * and asynchronous broadcast are both completed after successful work.
+     */
     @Test
     fun recurringAlarm_reschedulesNextAlarm() = runTest {
         givenSettings(
@@ -95,7 +112,12 @@ class AlarmReceiverTest {
         assertTrue(playbackStarted)
     }
 
-    /** A one-shot alarm should disable itself after firing rather than schedule another occurrence. */
+    /**
+     * An empty repeat-day set represents a one-shot alarm. After it fires, scheduling another occurrence
+     * would make it repeat daily, so the scheduler must receive no call. Persisting `enabled = false`
+     * prevents stale UI state from claiming the alarm is still active; finishing the pending result closes
+     * the receiver's asynchronous work.
+     */
     @Test
     fun oneShotAlarm_disablesAlarmAfterItFires() = runTest {
         givenSettings(alarmSettings(enabledDays = emptySet()))
@@ -109,7 +131,11 @@ class AlarmReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
-    /** A stale broadcast for a disabled alarm should make no scheduling or persistence changes. */
+    /**
+     * A broadcast can arrive after the user disabled its alarm because system delivery and app state can
+     * race. Given `enabled = false`, the post-fire scheduling policy should neither create a next alarm nor
+     * write enabled state again. The test still requires pending-result cleanup after inspecting settings.
+     */
     @Test
     fun disabledAlarm_doesNotReschedule() = runTest {
         givenSettings(
@@ -128,7 +154,12 @@ class AlarmReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
-    /** Without notification permission, a one-shot alarm should skip playback but still disable itself. */
+    /**
+     * Android foreground playback requires a visible notification. With notification checks forced to
+     * fail, a one-shot alarm must not start the service, but its state transition still has to complete:
+     * it is disabled and not rescheduled. This prevents repeated attempts while respecting Android's
+     * notification restriction.
+     */
     @Test
     fun notificationsDenied_skipsPlaybackAndDisablesOneShotAlarm() = runTest {
         givenSettings(alarmSettings(enabledDays = emptySet()))
@@ -148,7 +179,11 @@ class AlarmReceiverTest {
         assertFalse(playbackStarted)
     }
 
-    /** A recurring alarm should still be rescheduled when notification permission prevents playback. */
+    /**
+     * Notification denial affects what the app may do for the current occurrence, not the user's saved
+     * recurrence. The service-start flag must remain false, while the exact 06:45 Tuesday/Thursday schedule
+     * is registered for next time. The alarm remains enabled, and receiver resources are released normally.
+     */
     @Test
     fun notificationsDenied_skipsPlaybackButReschedulesRecurringAlarm() = runTest {
         givenSettings(
@@ -182,7 +217,12 @@ class AlarmReceiverTest {
         assertFalse(playbackStarted)
     }
 
-    /** A settings read failure should skip alarm work and playback while still releasing receiver resources. */
+    /**
+     * The repository flow throws before any [AlarmSettings] snapshot is available. Without trustworthy
+     * settings the receiver must not start playback, schedule a recurrence, or change enabled state. The
+     * `finally` cleanup path must nevertheless release the wake lock and finish the pending result exactly
+     * once, demonstrating exception safety.
+     */
     @Test
     fun repositoryFailure_releasesWakeLockAndFinishesPendingResult() = runTest {
         every { repository.settings } returns flow {
@@ -202,6 +242,7 @@ class AlarmReceiverTest {
     }
 
     private fun givenSettings(settings: AlarmSettings) {
+        // A single flow emission models DataStore returning the settings snapshot at firing time.
         every { repository.settings } returns flowOf(settings)
     }
 
@@ -225,6 +266,8 @@ class AlarmReceiverTest {
         notificationsAllowed: Boolean = true,
         onPlaybackStart: () -> Unit = {}
     ): AlarmReceiver = object : AlarmReceiver() {
+        // AlarmReceiver exposes these creation methods as test seams. Overriding them keeps all effects
+        // observable and ensures launched work belongs to runTest instead of a real global IO dispatcher.
         override fun createRepository(context: Context): AlarmSettingsRepository = repository
 
         override fun createScheduler(context: Context): AlarmScheduler = scheduler
@@ -241,6 +284,8 @@ class AlarmReceiverTest {
     }
 
     private fun verifyReceiverCleanup() {
+        // The normal lifecycle is one acquire when onReceive begins, followed by one release and finish
+        // after coroutine work ends. Exact counts also catch accidental double-cleanup.
         verify(exactly = 1) { wakeLock.acquire(any<Long>()) }
         verify(exactly = 1) { wakeLock.release() }
         verify(exactly = 1) { pendingResult.finish() }

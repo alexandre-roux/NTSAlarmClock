@@ -3,6 +3,7 @@ package com.alexroux.ntsalarmclock.alarm
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
+import com.alexroux.ntsalarmclock.alarm.AlarmSchedulerTest.Companion.TRIGGER_AT_MILLIS
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -23,6 +24,11 @@ import java.time.LocalDateTime
  *
  * Android framework entry points are mocked so the tests can verify scheduling
  * calls without registering real alarms on a device.
+ *
+ * [NextAlarmCalculator] is mocked to return the constant [TRIGGER_AT_MILLIS]. This separates two
+ * responsibilities: its own tests validate date calculation, while this class validates which
+ * AlarmManager API is called and how failures fall back. The broadcast PendingIntent fires
+ * [AlarmReceiver]; the activity PendingIntent is metadata Android can show as the upcoming alarm UI.
  */
 class AlarmSchedulerTest {
 
@@ -57,7 +63,12 @@ class AlarmSchedulerTest {
         unmockkAll()
     }
 
-    /** Scheduling should cancel the previous PendingIntent before registering its replacement. */
+    /**
+     * Given a valid calculated trigger, scheduling first removes any existing alarm associated with the
+     * same broadcast PendingIntent, then registers an AlarmClock alarm. [verifyOrder] is important: merely
+     * checking that both calls happened would not catch a replacement being cancelled immediately after
+     * it was registered.
+     */
     @Test
     fun scheduleNextAlarm_replacesExistingAlarmBeforeScheduling() {
         givenNextTrigger(TRIGGER_AT_MILLIS)
@@ -74,7 +85,12 @@ class AlarmSchedulerTest {
         }
     }
 
-    /** If AlarmClock registration is denied, the scheduler should retain precision with the exact fallback. */
+    /**
+     * Some Android or OEM configurations may throw [SecurityException] from `setAlarmClock`. This test
+     * forces that failure and makes `setExactAndAllowWhileIdle` succeed. Calling the exact fallback once
+     * proves the alarm remains precise and can wake an idle device; verifying zero inexact calls proves
+     * the scheduler stops after the first successful fallback.
+     */
     @Test
     fun scheduleNextAlarm_usesExactFallback_whenAlarmClockThrowsSecurityException() {
         givenNextTrigger(TRIGGER_AT_MILLIS)
@@ -109,7 +125,11 @@ class AlarmSchedulerTest {
         }
     }
 
-    /** If both preferred exact APIs are denied, an inexact alarm should preserve eventual delivery. */
+    /**
+     * Here both `setAlarmClock` and the exact while-idle fallback throw [SecurityException]. The final
+     * `AlarmManager.set` call is less precise but still delivers eventually. Verifying it once documents
+     * the resilience policy: degraded timing is preferable to silently dropping the user's alarm.
+     */
     @Test
     fun scheduleNextAlarm_usesInexactFallback_whenExactFallbackThrowsSecurityException() {
         givenNextTrigger(TRIGGER_AT_MILLIS)
@@ -140,7 +160,11 @@ class AlarmSchedulerTest {
         }
     }
 
-    /** A missing calculated trigger should prevent any new platform alarm from being registered. */
+    /**
+     * A null trigger means the calculator could not produce a valid future occurrence. Passing that
+     * result through to AlarmManager would be invalid, so the scheduler must return without calling
+     * `setAlarmClock`. This guards the boundary between date calculation and Android registration.
+     */
     @Test
     fun scheduleNextAlarm_doesNothingIfTriggerIsNull() {
         givenNextTrigger(null)
@@ -159,7 +183,11 @@ class AlarmSchedulerTest {
         }
     }
 
-    /** Explicit cancellation should remove both the AlarmManager entry and its PendingIntent token. */
+    /**
+     * Cancelling only AlarmManager removes the current registration but can leave the PendingIntent token
+     * reusable in the system. This test requires both `alarmManager.cancel(...)` and `pendingIntent.cancel()`
+     * so disabling an alarm completely removes its scheduled operation and identity.
+     */
     @Test
     fun cancelAlarm_cancelsAlarmAndPendingIntent() {
         scheduler.cancelAlarm()
@@ -170,6 +198,7 @@ class AlarmSchedulerTest {
 
     private fun givenNextTrigger(triggerAtMillis: Long?) {
         // The calculator is mocked because these tests focus on AlarmManager calls.
+        // Returning a fixed value also makes verification independent of the computer's date and zone.
         mockkObject(NextAlarmCalculator)
         every {
             NextAlarmCalculator.computeNextTriggerMillis(

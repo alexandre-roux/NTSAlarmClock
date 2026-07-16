@@ -20,6 +20,11 @@ import org.junit.runner.RunWith
  *
  * Local JVM tests cannot reliably inspect NotificationChannel behavior or
  * full-screen notification fields, so these assertions run on device/emulator.
+ *
+ * The first test asks Android's real [NotificationManager] for the channel after creation because channel
+ * configuration is persisted by the operating system. The second inspects the built [Notification]
+ * object directly. Together they cover the system-level container and the individual alarm notification
+ * placed inside it.
  */
 @RunWith(AndroidJUnit4::class)
 class AlarmNotificationInstrumentedTest {
@@ -27,6 +32,11 @@ class AlarmNotificationInstrumentedTest {
     /**
      * Verifies Android persists the alarm channel with high importance and public visibility,
      * while leaving sound and vibration to the playback service rather than the channel.
+     *
+     * `createNotificationChannel` is executed before querying the manager by the production channel ID.
+     * The identity/name checks guard accidental mismatches, high importance permits urgent alarm display,
+     * and disabled channel vibration/sound prevents Android from adding effects on top of app-controlled
+     * audio. A null sound is asserted explicitly because silence is part of the channel contract.
      */
     @Test
     fun createNotificationChannel_configuresHighImportancePublicSilentChannel() {
@@ -50,6 +60,12 @@ class AlarmNotificationInstrumentedTest {
     /**
      * Verifies a ringing notification has alarm-specific presentation, launches full-screen UI,
      * exposes a stop action, and remains ongoing until the alarm is explicitly stopped.
+     *
+     * Category and visibility influence how Android presents the alarm on the lock screen. Title/text
+     * assertions verify user-facing resources. Both content and full-screen intents must exist so tapping
+     * or urgent delivery can open the ringing UI. The single action must be the localized stop command.
+     * Finally, bit-mask assertions prove the notification is ongoing and only alerts once, while not being
+     * auto-cancelled by an ordinary tap.
      */
     @Test
     fun buildAlarmNotification_usesAlarmCategoryFullScreenIntentAndStopAction() {

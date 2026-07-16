@@ -36,6 +36,11 @@ import org.junit.Test
  * Android collaborators are mocked, and Dispatchers.Main is replaced with a
  * test dispatcher so viewModelScope work is deterministic. Each test cancels
  * viewModelScope because the ViewModel keeps a show-polling coroutine alive.
+ *
+ * [settingsFlow] simulates live alarm preferences from DataStore. MockK verifies commands sent to
+ * Android-facing collaborators without starting a real service or notification manager. `runCurrent()`
+ * executes work already queued on the test dispatcher; it is used after construction for `init` work
+ * and after suspend actions before their results are asserted.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RingScreenViewModelTest {
@@ -87,6 +92,11 @@ class RingScreenViewModelTest {
     /**
      * Verifies that stopping an alarm tells the playback service to stop and removes the
      * ongoing alarm notification so no ringing UI remains active.
+     *
+     * The ViewModel is created only after replacing `Dispatchers.Main`, then its initialization work is
+     * drained. Calling `stopAlarm()` should issue one service command and cancel the specific alarm
+     * notification ID exactly once. The `finally` block always cancels the polling scope, even if an
+     * assertion fails.
      */
     @Test
     fun stopAlarm_stopsPlaybackServiceAndCancelsNotification() = runTest {
@@ -113,6 +123,10 @@ class RingScreenViewModelTest {
     /**
      * Verifies that live volume changes are capped at the supported maximum before the
      * ViewModel updates its state and forwards the value to the playback service.
+     *
+     * Passing 150 simulates a UI or external input above the valid percentage range. The state assertion
+     * proves the displayed value becomes 100 immediately, while the service-call verification proves
+     * the normalized change is also sent to active playback.
      */
     @Test
     fun onVolumeChange_clampsAndSendsVolumeToPlaybackService() = runTest {
@@ -134,6 +148,10 @@ class RingScreenViewModelTest {
     /**
      * Verifies that finishing a volume adjustment clamps values below zero and persists the
      * normalized value in the alarm settings repository.
+     *
+     * Passing -5 exercises the lower boundary. Unlike a live drag update, the "finished" callback must
+     * save the final value, so the test checks both observable state 0 and one suspend call to
+     * `repository.setVolume(0)` after queued coroutine work runs.
      */
     @Test
     fun onVolumeChangeFinished_clampsAndPersistsVolume() = runTest {
@@ -155,6 +173,10 @@ class RingScreenViewModelTest {
     /**
      * Verifies that volume changes emitted by the settings repository are collected into the
      * ViewModel's observable volume state.
+     *
+     * Assigning a copy with volume 35 simulates persistence changing outside the immediate callback.
+     * Running queued collectors and observing 35 proves the ViewModel treats the repository flow as the
+     * source of truth rather than keeping a disconnected local value.
      */
     @Test
     fun repositoryVolume_updatesCurrentVolume() = runTest {
@@ -177,6 +199,10 @@ class RingScreenViewModelTest {
     /**
      * Verifies that the currently airing NTS show is fetched during ViewModel initialization
      * and exposed to the ringing screen.
+     *
+     * The NTS repository is stubbed to return a successful title before construction. Draining init
+     * coroutines and observing "Breakfast Show" proves startup performs the fetch and publishes its
+     * payload, allowing the UI to label what is playing.
      */
     @Test
     fun currentShow_isLoadedOnStart() = runTest {

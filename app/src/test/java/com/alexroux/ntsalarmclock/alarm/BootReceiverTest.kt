@@ -24,7 +24,17 @@ import org.junit.Before
 import org.junit.Test
 import java.time.DayOfWeek
 
-/** Tests restoration of persisted alarm state after a device reboot. */
+/**
+ * Tests restoration of persisted alarm state after a device reboot.
+ *
+ * Android deletes AlarmManager registrations when a device restarts, but DataStore preferences remain.
+ * [BootReceiver] must therefore read the saved [AlarmSettings] and either recreate an enabled alarm or
+ * remove stale scheduling for a disabled one.
+ *
+ * The receiver normally calls `goAsync()` and launches work outside `onReceive`. [testReceiver] replaces
+ * its repository, scheduler, coroutine scope, and [BroadcastReceiver.PendingResult] with test-controlled
+ * objects. `advanceUntilIdle()` then completes that asynchronous work without a real device reboot.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BootReceiverTest {
 
@@ -51,7 +61,12 @@ class BootReceiverTest {
         unmockkAll()
     }
 
-    /** Boot should restore an enabled alarm's persisted time and repeat days, then finish async work. */
+    /**
+     * Given persisted settings for an enabled 06:15 alarm repeating Monday and Friday, a boot-completed
+     * broadcast should pass that exact configuration to the scheduler. Verifying zero cancellations
+     * distinguishes restoration from the disabled path. Finishing the pending result proves Android is
+     * told that asynchronous receiver work is complete.
+     */
     @Test
     fun bootCompleted_reschedulesEnabledAlarm() = runTest {
         givenSettings(
@@ -78,7 +93,11 @@ class BootReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
-    /** A disabled persisted alarm should cancel any stale system alarm instead of being rescheduled. */
+    /**
+     * Given saved settings with `enabled = false`, boot restoration must not schedule anything. It still
+     * calls cancellation because a stale AlarmManager entry could survive inconsistent app state. The
+     * final `finish()` verification checks the asynchronous broadcast lifecycle in this branch too.
+     */
     @Test
     fun bootCompleted_cancelsDisabledAlarmState() = runTest {
         givenSettings(
@@ -99,7 +118,11 @@ class BootReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
-    /** Repository failures must not schedule or cancel an alarm, but must still finish the broadcast. */
+    /**
+     * The fake settings flow throws to simulate DataStore being unavailable or corrupted. With no valid
+     * state, scheduling or cancellation would be a guess, so both call counts must remain zero. Even on
+     * failure, `PendingResult.finish()` must run; otherwise Android may treat the receiver as stuck.
+     */
     @Test
     fun bootCompleted_finishesPendingResultWhenRepositoryFails() = runTest {
         every { repository.settings } returns flow {
@@ -115,7 +138,11 @@ class BootReceiverTest {
         verify(exactly = 1) { pendingResult.finish() }
     }
 
-    /** Broadcasts other than boot completion should be ignored without starting asynchronous cleanup. */
+    /**
+     * [BootReceiver] may be invoked with an unrelated action, represented here by `ACTION_TIME_CHANGED`.
+     * The receiver should return before creating asynchronous work, so neither scheduler method nor the
+     * test pending result is touched. This prevents accidental restoration for broadcasts it does not own.
+     */
     @Test
     fun nonBootBroadcast_isIgnored() = runTest {
         val timeChangedIntent = mockk<Intent> {
@@ -132,6 +159,7 @@ class BootReceiverTest {
     }
 
     private fun givenSettings(settings: AlarmSettings) {
+        // A one-value flow models DataStore emitting its current persisted snapshot.
         every { repository.settings } returns flowOf(settings)
     }
 
@@ -150,6 +178,8 @@ class BootReceiverTest {
     )
 
     private fun testReceiver(scope: CoroutineScope): BootReceiver = object : BootReceiver() {
+        // Production dependencies are created inside the receiver. Overriding these factory methods
+        // keeps the test on the JVM and routes asynchronous work through runTest's controlled scope.
         override fun createRepository(context: Context): AlarmSettingsRepository = repository
 
         override fun createScheduler(context: Context): AlarmScheduler = scheduler

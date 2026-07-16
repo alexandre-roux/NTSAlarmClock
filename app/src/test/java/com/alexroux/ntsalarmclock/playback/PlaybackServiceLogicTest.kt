@@ -8,28 +8,48 @@ import org.junit.Test
  *
  * Keeping this logic outside the Android Service lets these edge cases run fast
  * without Media3, Notification, or foreground-service infrastructure.
+ *
+ * Playback code uses two volume representations: user settings are integer percentages from
+ * 0 through 100, while Media3's player expects floating-point values from 0f through 1f. These
+ * tests document every conversion, boundary, and progressive-volume edge case between them.
  */
 class PlaybackServiceLogicTest {
 
-    /** A valid percentage is converted to the player's normalized 0f..1f scale. */
+    /**
+     * Given a normal saved volume of 50 percent, converting it for Media3 should produce 0.5f.
+     * This is the basic scale conversion: divide the integer percentage by 100 without changing
+     * its relative loudness.
+     */
     @Test
     fun toPlayerVolume_convertsPercentToFloat() {
         assertEquals(0.5f, PlaybackServiceLogic.toPlayerVolume(50))
     }
 
-    /** Percentages below zero are clamped so the player never receives a negative volume. */
+    /**
+     * Given a corrupt or accidental percentage below zero, the conversion should return 0f.
+     * Media3 does not accept negative volume, so this assertion proves the conversion also acts as
+     * a safety boundary rather than blindly dividing -10 into -0.1f.
+     */
     @Test
     fun toPlayerVolume_clampsLowValue() {
         assertEquals(0f, PlaybackServiceLogic.toPlayerVolume(-10))
     }
 
-    /** Percentages above 100 are capped at the player's maximum volume. */
+    /**
+     * Given a percentage above the supported maximum, the conversion should return exactly 1f.
+     * This prevents an invalid stored value such as 150 from reaching the player as 1.5f.
+     * Checking the exact maximum also proves the value is capped rather than rejected or muted.
+     */
     @Test
     fun toPlayerVolume_clampsHighValue() {
         assertEquals(1f, PlaybackServiceLogic.toPlayerVolume(150))
     }
 
-    /** Persisted volume values are constrained to 0..100 while valid values remain unchanged. */
+    /**
+     * This test covers all three branches of percentage normalization: a value below the range
+     * becomes 0, an in-range value remains unchanged, and a value above the range becomes 100.
+     * Testing all branches distinguishes clamping from a function that always returns one boundary.
+     */
     @Test
     fun coerceVolumePercent_clampsToPersistedRange() {
         assertEquals(0, PlaybackServiceLogic.coerceVolumePercent(-1))
@@ -37,7 +57,11 @@ class PlaybackServiceLogicTest {
         assertEquals(100, PlaybackServiceLogic.coerceVolumePercent(101))
     }
 
-    /** Progressive playback starts muted so later steps can ramp up to the requested volume. */
+    /**
+     * Given an 80 percent target with progressive volume enabled, playback must start at 0f.
+     * The scheduled ramp can then increase volume gradually; starting at 0.8f would make the
+     * progressive preference ineffective.
+     */
     @Test
     fun initialPlayerVolume_returnsZero_whenProgressiveVolumeEnabled() {
         val initialVolume = PlaybackServiceLogic.initialPlayerVolume(
@@ -48,7 +72,11 @@ class PlaybackServiceLogicTest {
         assertEquals(0f, initialVolume)
     }
 
-    /** Without progressive playback, the player starts immediately at the requested volume. */
+    /**
+     * Given the same 80 percent target with progressive volume disabled, the initial player volume
+     * should be 0.8f immediately. This proves the progressive flag, rather than the target itself,
+     * selects between muted startup and direct startup.
+     */
     @Test
     fun initialPlayerVolume_returnsTargetVolume_whenProgressiveVolumeDisabled() {
         val initialVolume = PlaybackServiceLogic.initialPlayerVolume(
@@ -59,7 +87,11 @@ class PlaybackServiceLogicTest {
         assertEquals(0.8f, initialVolume)
     }
 
-    /** An invalid target is still capped when progressive playback is disabled. */
+    /**
+     * Given an invalid 150 percent target and no progressive ramp, initial volume must still be
+     * clamped to Media3's maximum of 1f. The test protects the direct-start path, which could
+     * otherwise bypass the normal percentage conversion safeguards.
+     */
     @Test
     fun initialPlayerVolume_clampsTargetVolume_whenProgressiveVolumeDisabled() {
         val initialVolume = PlaybackServiceLogic.initialPlayerVolume(
@@ -72,7 +104,11 @@ class PlaybackServiceLogicTest {
         assertEquals(1f, initialVolume)
     }
 
-    /** A regular progressive step advances by one fraction of the target volume. */
+    /**
+     * Given current volume 0.2f, target 0.5f, and ten total ramp steps, one step adds 0.05f
+     * (`target / stepCount`). The expected 0.25f proves the function advances by a stable fraction
+     * of the target rather than a fraction of the remaining distance.
+     */
     @Test
     fun nextProgressiveVolumeStep_increasesVolumeWithoutExceedingTarget() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -84,7 +120,11 @@ class PlaybackServiceLogicTest {
         assertEquals(0.25f, nextVolume)
     }
 
-    /** A step that would overshoot is capped exactly at the target volume. */
+    /**
+     * Given a current volume already close to the target, the next calculated increment would pass
+     * 0.5f. Returning exactly 0.5f proves the ramp stops at the user's requested volume and cannot
+     * become louder because of its fixed step size.
+     */
     @Test
     fun nextProgressiveVolumeStep_stopsAtTargetVolume() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -96,7 +136,11 @@ class PlaybackServiceLogicTest {
         assertEquals(0.5f, nextVolume)
     }
 
-    /** A zero step count cannot define a ramp, so playback falls back to the target volume. */
+    /**
+     * A zero step count would require division by zero and cannot describe a useful ramp. The safe
+     * fallback is the requested target volume, so the alarm remains audible and the calculation
+     * produces a valid number.
+     */
     @Test
     fun nextProgressiveVolumeStep_returnsTarget_whenStepCountIsZero() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -108,7 +152,11 @@ class PlaybackServiceLogicTest {
         assertEquals(0.8f, nextVolume)
     }
 
-    /** A negative step count is invalid and likewise falls back to the target volume. */
+    /**
+     * A negative step count is invalid configuration just like zero. Returning the target directly
+     * proves the defensive branch handles every non-positive count instead of attempting a negative
+     * ramp that would move away from the target.
+     */
     @Test
     fun nextProgressiveVolumeStep_returnsTarget_whenStepCountIsNegative() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -120,7 +168,11 @@ class PlaybackServiceLogicTest {
         assertEquals(0.8f, nextVolume)
     }
 
-    /** A zero target remains muted instead of being increased by the ramp calculation. */
+    /**
+     * Given a target of 0f, progressive calculation must keep the player muted. This guards against
+     * special-case arithmetic accidentally introducing audible volume when the requested target is
+     * silence.
+     */
     @Test
     fun nextProgressiveVolumeStep_keepsZeroTargetMuted() {
         val nextVolume = PlaybackServiceLogic.nextProgressiveVolumeStep(
@@ -132,7 +184,11 @@ class PlaybackServiceLogicTest {
         assertEquals(0f, nextVolume)
     }
 
-    /** A manual adjustment within range applies the requested delta unchanged. */
+    /**
+     * Given a current player volume of 0.5f and a manual increase of 0.1f, the result should be 0.6f.
+     * This establishes normal addition behavior before the following tests focus on clamping.
+     * Because the result remains in range, no boundary correction should alter the requested delta.
+     */
     @Test
     fun applyManualVolumeDelta_changesVolumeWithinBounds() {
         assertEquals(
@@ -144,7 +200,11 @@ class PlaybackServiceLogicTest {
         )
     }
 
-    /** Manual adjustments crossing either boundary are clamped to the player's valid range. */
+    /**
+     * This test exercises both boundaries for manual volume controls. Increasing 0.95f by 0.1f must
+     * stop at 1f, while decreasing 0.05f by 0.1f must stop at 0f. Together they prove a hardware or
+     * UI adjustment can never push Media3 outside its accepted range.
+     */
     @Test
     fun applyManualVolumeDelta_clampsVolumeToBounds() {
         assertEquals(
@@ -163,7 +223,11 @@ class PlaybackServiceLogicTest {
         )
     }
 
-    /** Already-invalid current volumes are normalized even when the delta moves farther out of range. */
+    /**
+     * The current value itself may already be invalid because of stale state or an external caller.
+     * Starting above 1f and below 0f, then moving farther outward, must still normalize to 1f and 0f.
+     * This proves clamping applies to the final result regardless of how it became invalid.
+     */
     @Test
     fun applyManualVolumeDelta_clampsAlreadyOutOfRangeCurrentVolume() {
         assertEquals(
