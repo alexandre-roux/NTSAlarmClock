@@ -8,44 +8,34 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import java.io.IOException
+import java.time.DayOfWeek
 
 /**
- * Repository implementation backed by Jetpack DataStore.
+ * Persists [AlarmSettings] in a Preferences [DataStore].
  *
- * This class is responsible for:
- * - Reading alarm settings from DataStore
- * - Exposing them as a Flow
- * - Updating individual settings in a safe and persistent way
+ * Missing preferences are replaced with application defaults. Read failures caused by I/O are
+ * also exposed as default settings, while unexpected failures are propagated to the collector.
  */
 class DataStoreAlarmSettingsRepository(
     private val dataStore: DataStore<Preferences>
 ) : AlarmSettingsRepository {
 
-    /**
-     * Keys used to store values inside the Preferences DataStore.
-     * These are the identifiers used to persist each setting.
-     */
     private companion object {
+        const val TAG = "DataStoreAlarmSettingsRepository"
 
+        // These names are part of the persisted format and must remain stable.
         val KEY_ENABLED = booleanPreferencesKey("alarm_enabled")
-
         val KEY_HOUR = intPreferencesKey("alarm_hour")
         val KEY_MINUTE = intPreferencesKey("alarm_minute")
-
         val KEY_VOLUME = intPreferencesKey("alarm_volume")
-
         val KEY_ENABLED_DAYS = stringSetPreferencesKey("alarm_enabled_days")
+        val KEY_PROGRESSIVE_VOLUME = booleanPreferencesKey("alarm_progressive_volume")
 
-        val KEY_PROGRESSIVE_VOLUME =
-            booleanPreferencesKey("alarm_progressive_volume")
-
-        /**
-         * Default values used when no preference exists yet.
-         */
+        // Defaults define both the first-run state and the fallback for individually missing keys.
         const val DEFAULT_ENABLED = false
         const val DEFAULT_HOUR = 7
         const val DEFAULT_MINUTE = 0
@@ -53,118 +43,80 @@ class DataStoreAlarmSettingsRepository(
         const val DEFAULT_PROGRESSIVE_VOLUME = false
     }
 
-    private val TAG = "DataStoreAlarmSettingsRepository"
-
-    /**
-     * Flow exposing the current alarm settings.
-     *
-     * Each time DataStore changes, a new AlarmSettings instance
-     * is emitted to observers.
-     */
     override val settings: Flow<AlarmSettings> =
         dataStore.data
-
-            /**
-             * If an exception happens while reading preferences,
-             * we recover by emitting empty preferences instead of crashing.
-             */
-            .catch { emit(emptyPreferences()) }
-
-            /**
-             * Transform raw Preferences into our domain model (AlarmSettings).
-             */
-            .map { prefs ->
-
-                Log.d(TAG, "Raw prefs = $prefs")
-
-                /**
-                 * Read enabled days from DataStore.
-                 * Stored as a Set<String> that we convert back to DayOfWeekUi.
-                 */
-                val rawDays = prefs[KEY_ENABLED_DAYS].orEmpty()
-
-                val enabledDays = rawDays.mapNotNull { raw ->
-                    runCatching { DayOfWeekUi.valueOf(raw) }.getOrNull()
-                }.toSet()
-
-                /**
-                 * Build the AlarmSettings object with stored values
-                 * or fallback to defaults if nothing is stored yet.
-                 */
-                AlarmSettings(
-                    enabled = prefs[KEY_ENABLED] ?: DEFAULT_ENABLED,
-                    hour = prefs[KEY_HOUR] ?: DEFAULT_HOUR,
-                    minute = prefs[KEY_MINUTE] ?: DEFAULT_MINUTE,
-                    volume = prefs[KEY_VOLUME] ?: DEFAULT_VOLUME,
-                    enabledDays = enabledDays,
-                    progressiveVolume = prefs[KEY_PROGRESSIVE_VOLUME]
-                        ?: DEFAULT_PROGRESSIVE_VOLUME
-                )
+            .catch { exception ->
+                // DataStore recommends recovering from storage I/O errors with empty preferences.
+                // Programming errors and cancellation-related failures must still reach callers.
+                if (exception is IOException) {
+                    Log.e(TAG, "Unable to read alarm settings; using defaults", exception)
+                    emit(emptyPreferences())
+                } else {
+                    throw exception
+                }
+            }
+            .map { preferences ->
+                preferences.toAlarmSettings()
             }
 
-    /**
-     * Enable or disable the alarm.
-     */
     override suspend fun setEnabled(enabled: Boolean) {
-
         Log.d(TAG, "setEnabled: $enabled")
-
-        dataStore.edit { prefs ->
-            prefs[KEY_ENABLED] = enabled
+        dataStore.edit { preferences ->
+            preferences[KEY_ENABLED] = enabled
         }
     }
 
-    /**
-     * Update the alarm time.
-     */
     override suspend fun setTime(hour: Int, minute: Int) {
-
         Log.d(TAG, "setTime: $hour:$minute")
-
-        dataStore.edit { prefs ->
-            prefs[KEY_HOUR] = hour
-            prefs[KEY_MINUTE] = minute
+        // Keep both components in one transaction so collectors never observe a partially updated
+        // time composed of the new hour and the old minute (or vice versa).
+        dataStore.edit { preferences ->
+            preferences[KEY_HOUR] = hour
+            preferences[KEY_MINUTE] = minute
         }
     }
 
-    /**
-     * Update the alarm volume.
-     */
     override suspend fun setVolume(volume: Int) {
-
         Log.d(TAG, "setVolume: $volume")
-
-        dataStore.edit { prefs ->
-            prefs[KEY_VOLUME] = volume
+        dataStore.edit { preferences ->
+            preferences[KEY_VOLUME] = volume
         }
     }
 
-    /**
-     * Update the enabled days for the alarm.
-     *
-     * Days are stored as their enum names (String)
-     * because Preferences DataStore cannot store enums directly.
-     */
-    override suspend fun setEnabledDays(days: Set<DayOfWeekUi>) {
-
+    override suspend fun setEnabledDays(days: Set<DayOfWeek>) {
         Log.d(TAG, "setEnabledDays: $days")
+        // Enum names are locale-independent and can be reconstructed without custom converters.
+        val dayNames = days.map { day -> day.name }.toSet()
 
-        val encoded = days.map { it.name }.toSet()
-
-        dataStore.edit { prefs ->
-            prefs[KEY_ENABLED_DAYS] = encoded
+        dataStore.edit { preferences ->
+            preferences[KEY_ENABLED_DAYS] = dayNames
         }
     }
 
-    /**
-     * Enable or disable progressive volume.
-     */
-    override suspend fun setProgressiveVolume(progressiveVolumeEnabled: Boolean) {
-
-        Log.d(TAG, "setProgressiveVolume: $progressiveVolumeEnabled")
-
-        dataStore.edit { prefs ->
-            prefs[KEY_PROGRESSIVE_VOLUME] = progressiveVolumeEnabled
+    override suspend fun setProgressiveVolume(enabled: Boolean) {
+        Log.d(TAG, "setProgressiveVolume: $enabled")
+        dataStore.edit { preferences ->
+            preferences[KEY_PROGRESSIVE_VOLUME] = enabled
         }
+    }
+
+    private fun Preferences.toAlarmSettings(): AlarmSettings {
+        // Preferences DataStore has no schema-level defaults, so apply them while mapping each
+        // emitted snapshot into the domain model.
+        return AlarmSettings(
+            enabled = this[KEY_ENABLED] ?: DEFAULT_ENABLED,
+            hour = this[KEY_HOUR] ?: DEFAULT_HOUR,
+            minute = this[KEY_MINUTE] ?: DEFAULT_MINUTE,
+            volume = this[KEY_VOLUME] ?: DEFAULT_VOLUME,
+            enabledDays = parseEnabledDays(this[KEY_ENABLED_DAYS].orEmpty()),
+            progressiveVolume = this[KEY_PROGRESSIVE_VOLUME] ?: DEFAULT_PROGRESSIVE_VOLUME
+        )
+    }
+
+    /** Unknown values are ignored so one invalid entry does not hide the valid days. */
+    private fun parseEnabledDays(dayNames: Set<String>): Set<DayOfWeek> {
+        return dayNames.mapNotNull { dayName ->
+            DayOfWeek.entries.firstOrNull { day -> day.name == dayName }
+        }.toSet()
     }
 }

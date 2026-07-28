@@ -1,0 +1,63 @@
+<resources>
+    <string name="loading_settings">Einstellungen werden geladen…</string>
+    <string name="time">ZEIT</string>
+    <string name="alarm_time">Weckzeit</string>
+    <string name="volume">LAUTSTÄRKE</string>
+    <string name="days">TAGE</string>
+    <string name="monday_short">Mo</string>
+    <string name="tuesday_short">Di</string>
+    <string name="wednesday_short">Mi</string>
+    <string name="thursday_short">Do</string>
+    <string name="friday_short">Fr</string>
+    <string name="saturday_short">Sa</string>
+    <string name="sunday_short">So</string>
+    <string name="monday">Montag</string>
+    <string name="tuesday">Dienstag</string>
+    <string name="wednesday">Mittwoch</string>
+    <string name="thursday">Donnerstag</string>
+    <string name="friday">Freitag</string>
+    <string name="saturday">Samstag</string>
+    <string name="sunday">Sonntag</string>
+    <string name="day_selected">Ausgewählt</string>
+    <string name="day_not_selected">Nicht ausgewählt</string>
+    <string name="cancel_alarm">WECKER ABBRECHEN</string>
+    <string name="set_alarm">WECKER STELLEN</string>
+    <string name="progressive_volume">ANSTEIGENDE LAUTSTÄRKE</string>
+    <string name="progressive_volume_description">Der Wecker beginnt leise und wird bis zur eingestellten Lautstärke lauter</string>
+    <string name="notifications_permission_required">BENACHRICHTIGUNGSBERECHTIGUNG ERFORDERLICH</string>
+    <string name="this_app_needs_notification_permission_to_work">Diese App benötigt die Benachrichtigungsberechtigung, um den Wecker auslösen zu können</string>
+    <string name="allow_notifications">BENACHRICHTIGUNGEN ERLAUBEN</string>
+    <string name="open_settings">EINSTELLUNGEN ÖFFNEN</string>
+    <string name="alarm_ringing">ZEIT ZUM EINSCHALTEN!</string>
+    <string name="notification_alarm_ringing">Wecker klingelt</string>
+    <string name="notification_channel_name">Wecker</string>
+    <string name="notification_channel_description">Benachrichtigungen, wenn der Wecker klingelt</string>
+    <string name="offline_fallback_music_message">Diese Ersatzmusik wird abgespielt, weil NTS nicht wiedergegeben werden kann. Möglicherweise ist die Internetverbindung deaktiviert?</string>
+    <string name="currently_playing">Aktuelle Wiedergabe: %1$s</string>
+    <string name="overlay_permission_required">OVERLAY-BERECHTIGUNG ERFORDERLICH</string>
+    <string name="overlay_permission_explanation">Diese App benötigt die Overlay-Berechtigung, um den Wecker auf dem Bildschirm anzuzeigen</string>
+    <string name="allow_overlay">OVERLAY ERLAUBEN</string>
+    <string name="play_stream_preview">Stream-Vorschau abspielen</string>
+    <string name="pause_stream_preview">Stream-Vorschau pausieren</string>
+    <string name="alarm_volume">Weckerlautstärke</string>
+    <string name="preview_alarm_scheduled_in">Dieser Wecker klingelt in 10 Stunden und 12 Minuten</string>
+    <string name="alarm_disabled">Der Wecker ist deaktiviert</string>
+    <string name="no_alarm_scheduled">Kein Wecker geplant</string>
+    <string name="alarm_scheduled_in">Dieser Wecker klingelt in %1$s</string>
+    <string name="alarm_scheduled_in_less_than_minute">Dieser Wecker klingelt in weniger als einer Minute</string>
+    <string name="duration_separator">,</string>
+    <string name="duration_final_separator">und</string>
+    <plurals name="duration_days">
+        <item quantity="one">%d Tag</item>
+        <item quantity="other">%d Tage</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="one">%d Stunde</item>
+        <item quantity="other">%d Stunden</item>
+    </plurals>
+    <plurals name="duration_minutes">
+        <item quantity="one">%d Minute</item>
+        <item quantity="other">%d Minuten</item>
+    </plurals>
+    <string name="stop_alarm_button">STOPP</string>
+</resources>

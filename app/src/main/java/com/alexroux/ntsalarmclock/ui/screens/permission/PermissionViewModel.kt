@@ -32,8 +32,8 @@ class PermissionViewModel : ViewModel() {
 
     private var notificationsGranted = false
     private var overlayGranted = false
-    private var deniedCount = 0
-    private var waitingForOverlayReturn = false
+    private var notificationDenialCount = 0
+    private var returningFromOverlaySettings = false
 
     /**
      * Called whenever the Activity has a fresh snapshot of Android permission
@@ -49,13 +49,13 @@ class PermissionViewModel : ViewModel() {
         NtsLogger.d(
             TAG,
             "permissions checked: notificationsGranted=$notificationsGranted, " +
-                    "overlayGranted=$overlayGranted, waitingForOverlayReturn=$waitingForOverlayReturn"
+                    "overlayGranted=$overlayGranted, " +
+                    "returningFromOverlaySettings=$returningFromOverlaySettings"
         )
 
-        if (waitingForOverlayReturn) {
-            waitingForOverlayReturn = false
-            // Overlay is helpful for downloaded APK behavior, but the old flow
-            // intentionally did not block the user forever after returning.
+        if (returningFromOverlaySettings) {
+            returningFromOverlaySettings = false
+            // Continue after one visit instead of repeatedly sending the user to settings.
             _uiState.value = PermissionUiState.Completed
             return
         }
@@ -69,11 +69,12 @@ class PermissionViewModel : ViewModel() {
     fun onNotificationPermissionResult(granted: Boolean) {
         notificationsGranted = granted
         if (!granted) {
-            deniedCount += 1
+            notificationDenialCount += 1
         }
         NtsLogger.d(
             TAG,
-            "notification permission result: granted=$granted, deniedCount=$deniedCount"
+            "notification permission result: granted=$granted, " +
+                    "deniedCount=$notificationDenialCount"
         )
         updateUiState()
     }
@@ -84,14 +85,15 @@ class PermissionViewModel : ViewModel() {
      */
     fun onOverlaySettingsOpened() {
         NtsLogger.d(TAG, "overlay settings opened; waiting for onResume permission snapshot")
-        waitingForOverlayReturn = true
+        returningFromOverlaySettings = true
     }
 
     // Keep the state transition table in one place so tests can exercise the
     // permission flow without launching Android UI or system settings.
     private fun updateUiState() {
         val nextState = when {
-            !notificationsGranted -> PermissionUiState.RequestNotifications(deniedCount)
+            !notificationsGranted ->
+                PermissionUiState.RequestNotifications(notificationDenialCount)
             !overlayGranted -> PermissionUiState.RequestOverlay
             else -> PermissionUiState.Completed
         }

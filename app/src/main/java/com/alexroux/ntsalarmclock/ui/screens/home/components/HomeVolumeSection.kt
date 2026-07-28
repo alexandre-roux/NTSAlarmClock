@@ -29,11 +29,15 @@ import com.alexroux.ntsalarmclock.ui.components.VolumeSlider
 @Composable
 fun HomeVolumeSection(
     isPlaying: Boolean,
-    volumeLive: Int,
+    currentVolume: Int,
     onPlayPauseClick: () -> Unit,
-    onVolumeLiveChange: (Int) -> Unit,
+    onVolumeChange: (Int) -> Unit,
     onVolumeChangeFinished: (Int) -> Unit
 ) {
+    val playPauseDescription = stringResource(
+        if (isPlaying) R.string.pause_stream_preview else R.string.play_stream_preview
+    )
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = stringResource(R.string.volume),
@@ -46,17 +50,15 @@ fun HomeVolumeSection(
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = stringResource(
-                        if (isPlaying) R.string.pause_stream_preview else R.string.play_stream_preview
-                    ),
+                    contentDescription = playPauseDescription,
                     tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )
             }
 
             VolumeSlider(
-                volumeLive = volumeLive,
-                onVolumeLiveChange = onVolumeLiveChange,
+                currentVolume = currentVolume,
+                onVolumeChange = onVolumeChange,
                 onVolumeChangeFinished = onVolumeChangeFinished,
                 label = stringResource(R.string.alarm_volume)
             )

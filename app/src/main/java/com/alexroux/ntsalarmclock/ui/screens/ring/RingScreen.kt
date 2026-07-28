@@ -10,7 +10,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.text.HtmlCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.alexroux.ntsalarmclock.R
 import com.alexroux.ntsalarmclock.ui.components.NTSButton
@@ -43,14 +43,14 @@ fun RingScreen(
     onDismiss: () -> Unit,
     viewModel: RingScreenViewModel = viewModel()
 ) {
-    val currentShow by viewModel.currentShow.collectAsState()
-    val volumeLive by viewModel.volumeLive.collectAsState()
+    val currentShow by viewModel.currentShow.collectAsStateWithLifecycle()
+    val currentVolume by viewModel.currentVolume.collectAsStateWithLifecycle()
 
     RingScreenContent(
         isFallbackAudioActive = isFallbackAudioActive,
         currentShow = currentShow,
-        volumeLive = volumeLive,
-        onVolumeLiveChange = viewModel::onVolumeLiveChange,
+        currentVolume = currentVolume,
+        onVolumeChange = viewModel::onVolumeChange,
         onVolumeChangeFinished = viewModel::onVolumeChangeFinished,
         onStopClick = {
             viewModel.stopAlarm()
@@ -63,19 +63,12 @@ fun RingScreen(
 fun RingScreenContent(
     isFallbackAudioActive: Boolean,
     currentShow: String?,
-    volumeLive: Int,
-    onVolumeLiveChange: (Int) -> Unit,
+    currentVolume: Int,
+    onVolumeChange: (Int) -> Unit,
     onVolumeChangeFinished: (Int) -> Unit,
     onStopClick: () -> Unit
 ) {
-    val decodedCurrentShow = if (!currentShow.isNullOrBlank()) {
-        HtmlCompat.fromHtml(
-            currentShow,
-            HtmlCompat.FROM_HTML_MODE_LEGACY
-        ).toString()
-    } else {
-        null
-    }
+    val currentShowName = decodeCurrentShow(currentShow)
 
     Column(
         modifier = Modifier
@@ -87,6 +80,7 @@ fun RingScreenContent(
         Text(
             text = stringResource(R.string.alarm_ringing),
             style = MaterialTheme.typography.displaySmall,
+            textAlign = TextAlign.Center,
             modifier = Modifier.semantics {
                 liveRegion = LiveRegionMode.Assertive
             }
@@ -94,9 +88,9 @@ fun RingScreenContent(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (!decodedCurrentShow.isNullOrBlank()) {
+        if (currentShowName != null) {
             Text(
-                text = stringResource(R.string.currently_playing, decodedCurrentShow),
+                text = stringResource(R.string.currently_playing, currentShowName),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary,
                 textAlign = TextAlign.Center,
@@ -120,8 +114,8 @@ fun RingScreenContent(
         )
 
         VolumeSlider(
-            volumeLive = volumeLive,
-            onVolumeLiveChange = onVolumeLiveChange,
+            currentVolume = currentVolume,
+            onVolumeChange = onVolumeChange,
             onVolumeChangeFinished = onVolumeChangeFinished,
             label = stringResource(R.string.alarm_volume)
         )
@@ -136,7 +130,9 @@ fun RingScreenContent(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "Ring Screen - English", locale = "en")
+@Preview(showBackground = true, name = "Ring Screen - French", locale = "fr")
+@Preview(showBackground = true, name = "Ring Screen - German", locale = "de")
 @Composable
 fun RingScreenPreview() {
     NTSAlarmClockTheme {
@@ -144,11 +140,20 @@ fun RingScreenPreview() {
             RingScreenContent(
                 isFallbackAudioActive = true,
                 currentShow = "Breakfast Show",
-                volumeLive = 70,
-                onVolumeLiveChange = {},
+                currentVolume = 70,
+                onVolumeChange = {},
                 onVolumeChangeFinished = {},
                 onStopClick = {}
             )
         }
     }
+}
+
+private fun decodeCurrentShow(currentShow: String?): String? {
+    if (currentShow.isNullOrBlank()) return null
+
+    return HtmlCompat.fromHtml(
+        currentShow,
+        HtmlCompat.FROM_HTML_MODE_LEGACY
+    ).toString().takeIf { decodedText -> decodedText.isNotBlank() }
 }
