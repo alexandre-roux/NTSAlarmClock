@@ -34,6 +34,8 @@ open class BootReceiver : BroadcastReceiver() {
 
         Log.d(TAG, "BOOT_COMPLETED received, restoring alarm schedule")
 
+        // BroadcastReceiver.onReceive returns immediately, so goAsync keeps this broadcast alive
+        // until the coroutine finishes reading settings and updating the next alarm.
         val pendingResult = createPendingResult()
 
         createScope().launch {

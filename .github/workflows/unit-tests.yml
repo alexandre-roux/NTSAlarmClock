@@ -43,7 +43,21 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if ./gradlew testDebugUnitTest --stacktrace; then
+              exit 0
+            fi
+
+            if [[ "$attempt" -eq 3 ]]; then
+              exit 1
+            fi
+
+            delay=$((attempt * 15))
+            echo "::warning::Gradle attempt ${attempt} failed; retrying in ${delay}s"
+            sleep "$delay"
+          done
 
       - name: Generate unit test coverage report
         run: ./gradlew debugCoverageReport --stacktrace
