@@ -16,6 +16,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+/**
+ * Defines how Hilt creates dependencies that are shared across the entire application.
+ *
+ * Installing this module in [SingletonComponent] makes its providers available to Android classes
+ * managed by Hilt, such as Activities, Services, and ViewModels. Each [Singleton] provider creates one
+ * application-wide instance, while [ApplicationContext] supplies a long-lived Context that is safe for
+ * repositories, resource access, and alarm scheduling.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
