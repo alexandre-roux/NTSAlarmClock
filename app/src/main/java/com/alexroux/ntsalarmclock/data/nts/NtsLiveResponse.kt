@@ -3,16 +3,18 @@ package com.alexroux.ntsalarmclock.data.nts
 import com.google.gson.annotations.SerializedName
 
 data class NtsLiveResponse(
-    val results: List<Channel>
+    @SerializedName("results")
+    val channels: List<NtsChannel>
 )
 
-data class Channel(
+data class NtsChannel(
     @SerializedName("channel_name")
-    val channelName: String,
-    val now: Now
+    val name: String,
+    @SerializedName("now")
+    val currentShow: NtsCurrentShow
 )
 
-data class Now(
+data class NtsCurrentShow(
     @SerializedName("broadcast_title")
-    val broadcastTitle: String
+    val title: String
 )

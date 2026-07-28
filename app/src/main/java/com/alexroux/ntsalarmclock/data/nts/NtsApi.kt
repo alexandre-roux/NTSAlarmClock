@@ -5,5 +5,5 @@ import retrofit2.http.GET
 interface NtsApi {
 
     @GET("api/v2/live")
-    suspend fun getLive(): NtsLiveResponse
+    suspend fun getLiveSchedule(): NtsLiveResponse
 }

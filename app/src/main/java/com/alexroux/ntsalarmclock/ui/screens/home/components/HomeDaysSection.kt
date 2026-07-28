@@ -7,8 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import com.alexroux.ntsalarmclock.R
-import com.alexroux.ntsalarmclock.ui.components.DayOfWeekUi
 import com.alexroux.ntsalarmclock.ui.components.DaysOfWeekRow
+import java.time.DayOfWeek
 
 /**
  * Section of the Home screen that lets the user choose
@@ -19,8 +19,8 @@ import com.alexroux.ntsalarmclock.ui.components.DaysOfWeekRow
  */
 @Composable
 fun HomeDaysSection(
-    selectedDays: Set<DayOfWeekUi>,
-    onToggleDay: (DayOfWeekUi) -> Unit
+    selectedDays: Set<DayOfWeek>,
+    onToggleDay: (DayOfWeek) -> Unit
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(

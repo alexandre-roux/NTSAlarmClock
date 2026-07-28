@@ -30,7 +30,8 @@ fun HomeProgressiveVolumeSection(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = stringResource(R.string.progressive_volume),
-            style = MaterialTheme.typography.headlineLarge
+            style = MaterialTheme.typography.headlineLarge,
+            textAlign = TextAlign.Center,
         )
         Text(
             text = stringResource(R.string.progressive_volume_description),
@@ -41,9 +42,7 @@ fun HomeProgressiveVolumeSection(
         val progressiveVolumeDescription = stringResource(R.string.progressive_volume)
         Switch(
             checked = progressiveVolume,
-            onCheckedChange = {
-                onProgressiveVolumeEnabledChange(it)
-            },
+            onCheckedChange = onProgressiveVolumeEnabledChange,
             modifier = Modifier.semantics {
                 contentDescription = progressiveVolumeDescription
             }
