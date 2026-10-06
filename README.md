@@ -49,16 +49,6 @@ Once downloaded, open the APK file to install the app.
 Depending on your Android settings, you may need to allow your browser or file manager to install
 apps from unknown sources.
 
-## Architecture and tech stack
-
-The app follows the MVVM architecture. The following diagram provides an overview of its main
-components:
-
-![Logical diagram for the NTS Alarm Clock app](assets/logical-diagram.png)
-
-A more detailed version of the diagram is
-available [here](https://mermaid.ai/d/91e95f5c-8473-48df-b634-e855d02e446f).
-
 ### Main building blocks
 
 * **Jetpack Compose**: Declarative UI built using a single-activity architecture.
